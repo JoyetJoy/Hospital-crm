@@ -1,0 +1,114 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary-color: #4F46E5;
+  --secondary-color: #10B981;
+  --background-light: #F9FAFB;
+  --text-dark: #111827;
+  --text-light: #6B7280;
+  --card-bg: #FFFFFF;
+  --border-color: #E5E7EB;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  background-color: var(--background-light);
+  color: var(--text-dark);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Custom Ant Design Overrides */
+.ant-layout {
+  background-color: var(--background-light) !important;
+}
+
+.ant-layout-sider {
+  background-color: #111827 !important;
+  box-shadow: var(--shadow-lg);
+}
+
+.ant-menu-dark {
+  background-color: #111827 !important;
+}
+
+.ant-layout-header {
+  background-color: var(--card-bg) !important;
+  box-shadow: var(--shadow-sm);
+  padding: 0 24px !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ant-card {
+  border-radius: 12px !important;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-color) !important;
+  transition: all 0.3s ease;
+}
+
+.ant-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.ant-btn-primary {
+  background-color: var(--primary-color) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.3) !important;
+  transition: all 0.3s ease;
+}
+
+.ant-btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 8px -1px rgba(79, 70, 229, 0.4) !important;
+}
+
+.ant-input, .ant-input-password, .ant-picker, .ant-select-selector {
+  border-radius: 8px !important;
+  padding: 8px 12px !important;
+}
+
+.page-header {
+  margin-bottom: 24px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.page-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-dark);
+  margin: 0;
+}
+
+/* Glassmorphism utilities */
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.glass-dark {
+  background: rgba(17, 24, 39, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}

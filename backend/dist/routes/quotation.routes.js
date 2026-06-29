@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const quotation_controller_1 = require("../controllers/quotation.controller");
+const auth_1 = require("../middleware/auth");
+const router = (0, express_1.Router)();
+router.use(auth_1.authenticateToken);
+router.get('/', quotation_controller_1.getQuotations);
+router.get('/:id', quotation_controller_1.getQuotationById);
+router.post('/', quotation_controller_1.createQuotation);
+router.put('/:id/status', quotation_controller_1.updateQuotationStatus);
+router.delete('/:id', quotation_controller_1.deleteQuotation);
+exports.default = router;

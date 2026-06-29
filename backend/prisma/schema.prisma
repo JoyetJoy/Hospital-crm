@@ -1,0 +1,186 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Role {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique // Super Admin, Admin, Sales Executive, Manager
+  permissions String?  // JSON string or comma separated
+  users       User[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  password     String
+  firstName    String
+  lastName     String
+  mobile       String?
+  roleId       Int
+  role         Role     @relation(fields: [roleId], references: [id])
+  executive    Executive?
+  auditLogs    AuditLog[]
+  notifications Notification[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Executive {
+  id              Int      @id @default(autoincrement())
+  userId          Int      @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  employeeCode    String?  @unique
+  territory       String?
+  target          Float?
+  assignments     HospitalAssignment[]
+  visits          Visit[]
+  quotations      Quotation[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Hospital {
+  id            Int      @id @default(autoincrement())
+  name          String
+  category      String   // Government, Private, EHSC
+  department    String?  // ENT, Dental, Ayurvedic, Cardiology, ICU, General, Orthopedic, Emergency (comma separated or single)
+  contactPerson String?
+  mobileNumber  String?
+  email         String?
+  address       String?
+  district      String?
+  city          String?
+  state         String?
+  pincode       String?
+  latitude      Float?
+  longitude     Float?
+  notes         String?
+  status        String   @default("Active") // Active, Inactive
+  assignments   HospitalAssignment[]
+  visits        Visit[]
+  followups     Followup[]
+  quotations    Quotation[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model HospitalAssignment {
+  id          Int      @id @default(autoincrement())
+  hospitalId  Int
+  hospital    Hospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+  executiveId Int
+  executive   Executive @relation(fields: [executiveId], references: [id], onDelete: Cascade)
+  assignedAt  DateTime @default(now())
+  notes       String?
+  
+  @@unique([hospitalId, executiveId])
+}
+
+model Visit {
+  id               Int      @id @default(autoincrement())
+  hospitalId       Int
+  hospital         Hospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+  executiveId      Int
+  executive        Executive @relation(fields: [executiveId], references: [id], onDelete: Cascade)
+  visitDate        DateTime
+  visitTime        String?
+  purpose          String?
+  notes            String?
+  productsDiscussed String? // Can be comma separated IDs or names
+  outcome          String?
+  status           String   @default("Interested") // Interested, Follow Up Required, Quotation Sent, Negotiation, Order Won, Order Lost
+  images           String?  // Comma separated paths to uploaded images
+  followups        Followup[]
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Followup {
+  id           Int      @id @default(autoincrement())
+  hospitalId   Int
+  hospital     Hospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+  visitId      Int?
+  visit        Visit?   @relation(fields: [visitId], references: [id], onDelete: SetNull)
+  followupDate DateTime
+  followupTime String?
+  followupType String   // Call, Visit, Quotation, Demo, Payment
+  priority     String   @default("Medium") // High, Medium, Low
+  notes        String?
+  status       String   @default("Pending") // Pending, Completed, Cancelled
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Product {
+  id             Int      @id @default(autoincrement())
+  productName    String
+  sku            String   @unique
+  category       String   // Hospital Beds, ICU Beds, Wheelchairs, etc.
+  description    String?
+  price          Float
+  gst            Float    @default(0) // Percentage
+  productImage   String?
+  quotationItems QuotationItem[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Quotation {
+  id              Int      @id @default(autoincrement())
+  quotationNumber String   @unique
+  hospitalId      Int
+  hospital        Hospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+  executiveId     Int
+  executive       Executive @relation(fields: [executiveId], references: [id], onDelete: Cascade)
+  date            DateTime @default(now())
+  validTill       DateTime
+  totalAmount     Float    @default(0)
+  status          String   @default("Draft") // Draft, Sent, Accepted, Rejected
+  pdfPath         String?
+  items           QuotationItem[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model QuotationItem {
+  id          Int       @id @default(autoincrement())
+  quotationId Int
+  quotation   Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  productId   Int
+  product     Product   @relation(fields: [productId], references: [id])
+  quantity    Int       @default(1)
+  price       Float     // Price at the time of quotation
+  gst         Float     @default(0) // GST percentage
+  discount    Float     @default(0) // Discount amount or percentage
+  total       Float
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   // Alert, Reminder, Assignment
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String
+  entity    String   // Hospital, Visit, User, etc.
+  entityId  Int?
+  details   String?  // JSON string of changes
+  createdAt DateTime @default(now())
+}

@@ -1,0 +1,15 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const executive_controller_1 = require("../controllers/executive.controller");
+const auth_1 = require("../middleware/auth");
+const router = (0, express_1.Router)();
+router.use(auth_1.authenticateToken);
+router.get('/', executive_controller_1.getExecutives);
+router.get('/:id', executive_controller_1.getExecutiveById);
+router.post('/', (0, auth_1.authorizeRole)(['Super Admin', 'Admin', 'Manager']), executive_controller_1.createExecutive);
+router.put('/:id', (0, auth_1.authorizeRole)(['Super Admin', 'Admin', 'Manager']), executive_controller_1.updateExecutive);
+router.delete('/:id', (0, auth_1.authorizeRole)(['Super Admin', 'Admin', 'Manager']), executive_controller_1.deleteExecutive);
+router.post('/:id/assignments', (0, auth_1.authorizeRole)(['Super Admin', 'Admin', 'Manager']), executive_controller_1.assignHospital);
+router.delete('/:id/assignments/:assignmentId', (0, auth_1.authorizeRole)(['Super Admin', 'Admin', 'Manager']), executive_controller_1.removeAssignment);
+exports.default = router;

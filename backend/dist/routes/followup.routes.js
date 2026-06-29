@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const followup_controller_1 = require("../controllers/followup.controller");
+const auth_1 = require("../middleware/auth");
+const router = (0, express_1.Router)();
+router.use(auth_1.authenticateToken);
+router.get('/', followup_controller_1.getFollowups);
+router.get('/:id', followup_controller_1.getFollowupById);
+router.post('/', followup_controller_1.createFollowup);
+router.put('/:id', followup_controller_1.updateFollowup);
+router.delete('/:id', followup_controller_1.deleteFollowup);
+exports.default = router;
