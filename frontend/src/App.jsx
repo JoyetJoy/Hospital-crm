@@ -21,13 +21,21 @@ const PrivateRoute = ({
   const isAuthenticated = useSelector(state => state.auth.isAuthenticated);
   return isAuthenticated ? children : <Navigate to="/login" />;
 };
+
+const RoleBasedRedirect = () => {
+  const user = useSelector(state => state.auth.user);
+  if (user?.role === 'Sales Executive') {
+    return <Navigate to="/hospitals" />;
+  }
+  return <Navigate to="/dashboard" />;
+};
 const App = () => {
   return <Router>
       <Routes>
         <Route path="/login" element={<Login />} />
         
         <Route path="/" element={<PrivateRoute><MainLayout /></PrivateRoute>}>
-          <Route index element={<Navigate to="/dashboard" />} />
+          <Route index element={<RoleBasedRedirect />} />
           <Route path="dashboard" element={<Dashboard />} />
           
           <Route path="hospitals" element={<HospitalsList />} />

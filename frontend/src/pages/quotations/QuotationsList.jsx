@@ -1,25 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Card, Typography, Tag, Space, message } from 'antd';
-import { PlusOutlined, DownloadOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { Table, Button, Card, Typography, Tag, Space, message, Drawer, Form, Select, DatePicker, Input, Upload } from 'antd';
+import { PlusOutlined, DownloadOutlined, UploadOutlined } from '@ant-design/icons';
 import api from '../../services/api';
 import dayjs from 'dayjs';
-const {
-  Title
-} = Typography;
+
+const { Title } = Typography;
+const { Option } = Select;
+
 const QuotationsList = () => {
   const [quotations, setQuotations] = useState([]);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
+  const [drawerVisible, setDrawerVisible] = useState(false);
+  const [hospitals, setHospitals] = useState([]);
+  const [fileList, setFileList] = useState([]);
+  const [form] = Form.useForm();
+
   useEffect(() => {
     fetchQuotations();
+    fetchHospitals();
   }, []);
+
   const fetchQuotations = async () => {
     try {
       setLoading(true);
-      const {
-        data
-      } = await api.get('/quotations');
+      const { data } = await api.get('/quotations');
       setQuotations(data);
     } catch (error) {
       console.error(error);
@@ -27,62 +31,135 @@ const QuotationsList = () => {
       setLoading(false);
     }
   };
-  const downloadPdf = async id => {
+
+  const fetchHospitals = async () => {
     try {
-      const response = await api.get(`/quotations/${id}/pdf`, {
-        responseType: 'blob'
-      });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `quotation_${id}.pdf`);
-      document.body.appendChild(link);
-      link.click();
+      const { data } = await api.get('/hospitals');
+      setHospitals(data);
     } catch (error) {
-      message.error('Failed to download PDF');
+      console.error('Failed to fetch hospitals', error);
     }
   };
-  const columns = [{
-    title: 'Quote No',
-    dataIndex: 'quotationNumber',
-    key: 'quotationNumber'
-  }, {
-    title: 'Date',
-    dataIndex: 'date',
-    key: 'date',
-    render: val => dayjs(val).format('MMM DD, YYYY')
-  }, {
-    title: 'Hospital',
-    key: 'hospital',
-    render: (_, record) => record.hospital?.name
-  }, {
-    title: 'Total Amount',
-    dataIndex: 'totalAmount',
-    key: 'totalAmount',
-    render: val => `₹${val.toFixed(2)}`
-  }, {
-    title: 'Status',
-    dataIndex: 'status',
-    key: 'status',
-    render: val => <Tag color={val === 'Sent' ? 'blue' : val === 'Accepted' ? 'green' : val === 'Rejected' ? 'red' : 'default'}>{val}</Tag>
-  }, {
-    title: 'Actions',
-    key: 'actions',
-    render: (_, record) => <Space>
-          <Button icon={<DownloadOutlined />} size="small" onClick={() => downloadPdf(record.id)}>PDF</Button>
+
+  const onFinish = async (values) => {
+    try {
+      const formData = new FormData();
+      formData.append('hospitalId', values.hospitalId);
+      formData.append('date', values.date.format('YYYY-MM-DD'));
+      formData.append('time', values.time || '');
+      
+      if (fileList.length > 0) {
+        formData.append('pdf', fileList[0].originFileObj);
+      } else {
+        message.error('Please select a PDF file');
+        return;
+      }
+
+      await api.post('/quotations', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      message.success('Quotation uploaded successfully');
+      setDrawerVisible(false);
+      form.resetFields();
+      setFileList([]);
+      fetchQuotations();
+    } catch (error) {
+      message.error('Failed to upload quotation');
+    }
+  };
+
+  const getPdfUrl = (path) => {
+    if (!path) return '#';
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    const baseUrl = apiUrl.replace('/api', '');
+    return `${baseUrl}${path}`;
+  };
+
+  const columns = [
+    {
+      title: 'Date',
+      dataIndex: 'date',
+      key: 'date',
+      render: val => dayjs(val).format('MMM DD, YYYY')
+    },
+    {
+      title: 'Time',
+      dataIndex: 'time',
+      key: 'time',
+      render: text => text || 'N/A'
+    },
+    {
+      title: 'Hospital',
+      key: 'hospital',
+      render: (_, record) => record.hospital?.name
+    },
+    {
+      title: 'Executive',
+      key: 'executive',
+      render: (_, record) => record.executive?.user?.firstName || 'Unknown'
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      render: (_, record) => (
+        <Space>
+          {record.pdfPath ? (
+            <Button icon={<DownloadOutlined />} size="small" type="link" href={getPdfUrl(record.pdfPath)} target="_blank">
+              View PDF
+            </Button>
+          ) : (
+            <span style={{ color: '#999' }}>No File</span>
+          )}
         </Space>
-  }];
-  return <div>
+      )
+    }
+  ];
+
+  return (
+    <div>
       <div className="page-header">
         <Title level={3} className="page-title">Quotations</Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/quotations/create')}>Create Quotation</Button>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => setDrawerVisible(true)}>
+          Upload Quotation
+        </Button>
       </div>
 
       <Card>
-        <Table scroll={{
-        x: 'max-content'
-      }} columns={columns} dataSource={quotations} rowKey="id" loading={loading} />
+        <Table scroll={{ x: 'max-content' }} columns={columns} dataSource={quotations} rowKey="id" loading={loading} />
       </Card>
-    </div>;
+
+      <Drawer title="Upload Quotation" placement="right" width={500} onClose={() => setDrawerVisible(false)} open={drawerVisible}>
+        <Form form={form} layout="vertical" onFinish={onFinish}>
+          <Form.Item name="hospitalId" label="Hospital" rules={[{ required: true }]}>
+            <Select showSearch optionFilterProp="children">
+              {hospitals.map(h => (
+                <Option key={h.id} value={h.id}>{h.name}</Option>
+              ))}
+            </Select>
+          </Form.Item>
+          
+          <Space style={{ display: 'flex' }}>
+            <Form.Item name="date" label="Date" rules={[{ required: true }]} style={{ flex: 1 }}>
+              <DatePicker style={{ width: '100%' }} />
+            </Form.Item>
+            <Form.Item name="time" label="Time" style={{ flex: 1 }}>
+              <Input type="time" />
+            </Form.Item>
+          </Space>
+
+          <Form.Item label="Upload Quotation PDF" required>
+            <Upload beforeUpload={() => false} accept=".pdf" fileList={fileList} onChange={({ fileList: newFileList }) => setFileList(newFileList.slice(-1))} multiple={false}>
+              <Button icon={<UploadOutlined />}>Select PDF</Button>
+            </Upload>
+          </Form.Item>
+
+          <Form.Item>
+            <Button type="primary" htmlType="submit" block>Save Quotation</Button>
+          </Form.Item>
+        </Form>
+      </Drawer>
+    </div>
+  );
 };
+
 export default QuotationsList;

@@ -77,9 +77,21 @@ body {
   box-shadow: 0 6px 8px -1px rgba(79, 70, 229, 0.4) !important;
 }
 
-.ant-input, .ant-input-password, .ant-picker, .ant-select-selector {
+.ant-input, .ant-input-affix-wrapper, .ant-picker {
   border-radius: 8px !important;
   padding: 8px 12px !important;
+}
+.ant-select {
+  height: 42px !important;
+}
+.ant-select-selector {
+  border-radius: 8px !important;
+  height: 100% !important; 
+  display: flex !important;
+  align-items: center !important;
+}
+.ant-input-affix-wrapper > input.ant-input {
+  padding: 0 !important;
 }
 
 .page-header {

@@ -11,5 +11,6 @@ router.post('/', (0, auth_1.authorizeRole)(['Super Admin', 'Admin', 'Manager']),
 router.put('/:id', (0, auth_1.authorizeRole)(['Super Admin', 'Admin', 'Manager']), executive_controller_1.updateExecutive);
 router.delete('/:id', (0, auth_1.authorizeRole)(['Super Admin', 'Admin', 'Manager']), executive_controller_1.deleteExecutive);
 router.post('/:id/assignments', (0, auth_1.authorizeRole)(['Super Admin', 'Admin', 'Manager']), executive_controller_1.assignHospital);
+router.post('/:id/assignments/bulk', (0, auth_1.authorizeRole)(['Super Admin', 'Admin', 'Manager']), executive_controller_1.bulkAssignHospitals);
 router.delete('/:id/assignments/:assignmentId', (0, auth_1.authorizeRole)(['Super Admin', 'Admin', 'Manager']), executive_controller_1.removeAssignment);
 exports.default = router;

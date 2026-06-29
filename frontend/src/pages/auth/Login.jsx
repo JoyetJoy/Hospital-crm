@@ -24,7 +24,7 @@ const Login = () => {
         token: data.token
       }));
       message.success('Login successful!');
-      navigate('/dashboard');
+      navigate('/');
     } catch (error) {
       message.error(error.response?.data?.message || 'Login failed. Please try again.');
     } finally {

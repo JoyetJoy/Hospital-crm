@@ -41,7 +41,7 @@ const getQuotationById = (req, res) => __awaiter(void 0, void 0, void 0, functio
     try {
         const quotation = yield prisma_1.default.quotation.findUnique({
             where: { id: parseInt(req.params.id) },
-            include: { hospital: true, items: { include: { product: true } } }
+            include: { hospital: true, executive: { include: { user: true } } }
         });
         if (!quotation)
             return res.status(404).json({ message: 'Quotation not found' });
@@ -54,64 +54,31 @@ const getQuotationById = (req, res) => __awaiter(void 0, void 0, void 0, functio
 exports.getQuotationById = getQuotationById;
 const createQuotation = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const { quotationNumber, hospitalId, executiveId, validTill, items } = req.body;
-        // items expected to be array of: { productId, quantity, price, gst, discount }
-        let totalAmount = 0;
-        const quotationItemsData = items.map((item) => {
-            const total = (item.price * item.quantity) - item.discount + ((item.price * item.quantity - item.discount) * (item.gst / 100));
-            totalAmount += total;
-            return {
-                productId: item.productId,
-                quantity: item.quantity,
-                price: item.price,
-                gst: item.gst,
-                discount: item.discount,
-                total
-            };
-        });
+        const { hospitalId, executiveId, date, time } = req.body;
+        
+        let finalExecutiveId = parseInt(executiveId);
+        if (isNaN(finalExecutiveId) && req.user && req.user.executiveId) {
+            finalExecutiveId = req.user.executiveId;
+        }
+
+        const file = req.file;
+        const pdfPath = file ? `/uploads/${file.filename}` : null;
+        
         const quotation = yield prisma_1.default.quotation.create({
             data: {
-                quotationNumber,
                 hospitalId: parseInt(hospitalId),
-                executiveId: parseInt(executiveId),
-                validTill: new Date(validTill),
-                totalAmount,
-                status: 'Draft',
-                items: {
-                    create: quotationItemsData
-                }
+                executiveId: finalExecutiveId,
+                date: date ? new Date(date) : new Date(),
+                time,
+                pdfPath
             },
-            include: { hospital: true, items: { include: { product: true } }, executive: { include: { user: true } } }
+            include: { hospital: true, executive: { include: { user: true } } }
         });
-        // Generate PDF
-        const pdfFileName = `quotation_${quotation.id}_${Date.now()}.pdf`;
-        const pdfPath = `/uploads/${pdfFileName}`;
-        const fullPath = path_1.default.join(__dirname, '../../uploads', pdfFileName);
-        const doc = new pdfkit_1.default();
-        doc.pipe(fs_1.default.createWriteStream(fullPath));
-        doc.fontSize(20).text('Quotation', { align: 'center' });
-        doc.moveDown();
-        doc.fontSize(12).text(`Quotation No: ${quotation.quotationNumber}`);
-        doc.text(`Date: ${quotation.date.toDateString()}`);
-        doc.text(`Valid Till: ${quotation.validTill.toDateString()}`);
-        doc.moveDown();
-        doc.text(`Hospital: ${quotation.hospital.name}`);
-        doc.moveDown();
-        doc.text('Items:');
-        quotation.items.forEach((item) => {
-            doc.text(`- ${item.product.productName}: ${item.quantity} x $${item.price} (GST: ${item.gst}%, Discount: ${item.discount}) = $${item.total}`);
-        });
-        doc.moveDown();
-        doc.fontSize(14).text(`Total Amount: $${quotation.totalAmount.toFixed(2)}`, { align: 'right' });
-        doc.end();
-        // Update quotation with PDF path
-        const updatedQuotation = yield prisma_1.default.quotation.update({
-            where: { id: quotation.id },
-            data: { pdfPath }
-        });
-        res.status(201).json(updatedQuotation);
+        
+        res.status(201).json(quotation);
     }
     catch (error) {
+        console.error('Error creating quotation:', error);
         res.status(500).json({ message: 'Error creating quotation', error });
     }
 });

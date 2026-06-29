@@ -7,6 +7,7 @@ const upload_1 = require("../middleware/upload");
 const router = (0, express_1.Router)();
 router.use(auth_1.authenticateToken);
 router.get('/', visit_controller_1.getVisits);
+router.get('/export', visit_controller_1.exportVisits);
 router.get('/:id', visit_controller_1.getVisitById);
 router.post('/', upload_1.upload.array('images', 5), visit_controller_1.createVisit);
 router.put('/:id', upload_1.upload.array('images', 5), visit_controller_1.updateVisit);

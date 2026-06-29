@@ -6,6 +6,7 @@ const auth_1 = require("../middleware/auth");
 const router = (0, express_1.Router)();
 router.use(auth_1.authenticateToken);
 router.get('/', hospital_controller_1.getHospitals);
+router.get('/locations/all', hospital_controller_1.getLocations);
 router.get('/:id', hospital_controller_1.getHospitalById);
 router.post('/', hospital_controller_1.createHospital);
 router.put('/:id', hospital_controller_1.updateHospital);

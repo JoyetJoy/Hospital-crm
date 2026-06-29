@@ -60,6 +60,7 @@ model Hospital {
   pincode       String?
   latitude      Float?
   longitude     Float?
+  bedCount      Int?
   notes         String?
   status        String   @default("Active") // Active, Inactive
   assignments   HospitalAssignment[]
@@ -83,22 +84,26 @@ model HospitalAssignment {
 }
 
 model Visit {
-  id               Int      @id @default(autoincrement())
-  hospitalId       Int
-  hospital         Hospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
-  executiveId      Int
-  executive        Executive @relation(fields: [executiveId], references: [id], onDelete: Cascade)
-  visitDate        DateTime
-  visitTime        String?
-  purpose          String?
-  notes            String?
-  productsDiscussed String? // Can be comma separated IDs or names
-  outcome          String?
-  status           String   @default("Interested") // Interested, Follow Up Required, Quotation Sent, Negotiation, Order Won, Order Lost
-  images           String?  // Comma separated paths to uploaded images
-  followups        Followup[]
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id           Int      @id @default(autoincrement())
+  hospitalId   Int
+  hospital     Hospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+  executiveId  Int
+  executive    Executive @relation(fields: [executiveId], references: [id], onDelete: Cascade)
+  visitDate    DateTime @default(now())
+  visitTime    String?  // added time field
+  requirement  String?
+  notes        String?
+  remarks      String?
+  images       String?  // Comma separated paths to uploaded images
+  
+  // Contact Person Details
+  contactName  String?
+  contactPhone String?
+  contactEmail String?
+  
+  followups    Followup[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 model Followup {
@@ -126,41 +131,21 @@ model Product {
   price          Float
   gst            Float    @default(0) // Percentage
   productImage   String?
-  quotationItems QuotationItem[]
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 }
 
 model Quotation {
   id              Int      @id @default(autoincrement())
-  quotationNumber String   @unique
   hospitalId      Int
   hospital        Hospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
   executiveId     Int
   executive       Executive @relation(fields: [executiveId], references: [id], onDelete: Cascade)
   date            DateTime @default(now())
-  validTill       DateTime
-  totalAmount     Float    @default(0)
-  status          String   @default("Draft") // Draft, Sent, Accepted, Rejected
+  time            String?
   pdfPath         String?
-  items           QuotationItem[]
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
-}
-
-model QuotationItem {
-  id          Int       @id @default(autoincrement())
-  quotationId Int
-  quotation   Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
-  productId   Int
-  product     Product   @relation(fields: [productId], references: [id])
-  quantity    Int       @default(1)
-  price       Float     // Price at the time of quotation
-  gst         Float     @default(0) // GST percentage
-  discount    Float     @default(0) // Discount amount or percentage
-  total       Float
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
 }
 
 model Notification {

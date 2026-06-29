@@ -12,12 +12,22 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteHospital = exports.updateHospital = exports.createHospital = exports.getHospitalById = exports.getHospitals = void 0;
+exports.deleteHospital = exports.updateHospital = exports.createHospital = exports.getHospitalById = exports.getHospitals = exports.getLocations = void 0;
 const prisma_1 = __importDefault(require("../utils/prisma"));
 const getHospitals = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const { search, category, status } = req.query;
+        const { search, category, status, state, district, city } = req.query;
         const where = {};
+        
+        // If user is a Sales Executive, only show their assigned hospitals
+        if (req.user && req.user.role === 'Sales Executive' && req.user.executiveId) {
+            where.assignments = {
+                some: {
+                    executiveId: req.user.executiveId
+                }
+            };
+        }
+
         if (search) {
             where.OR = [
                 { name: { contains: String(search), mode: 'insensitive' } },
@@ -28,6 +38,12 @@ const getHospitals = (req, res) => __awaiter(void 0, void 0, void 0, function* (
             where.category = String(category);
         if (status)
             where.status = String(status);
+        if (state)
+            where.state = String(state);
+        if (district)
+            where.district = String(district);
+        if (city)
+            where.city = String(city);
         const hospitals = yield prisma_1.default.hospital.findMany({ where, orderBy: { name: 'asc' } });
         res.json(hospitals);
     }
@@ -36,14 +52,31 @@ const getHospitals = (req, res) => __awaiter(void 0, void 0, void 0, function* (
     }
 });
 exports.getHospitals = getHospitals;
+const getLocations = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const states = yield prisma_1.default.hospital.findMany({ select: { state: true }, distinct: ['state'], where: { state: { not: null } } });
+        const districts = yield prisma_1.default.hospital.findMany({ select: { district: true }, distinct: ['district'], where: { district: { not: null } } });
+        const cities = yield prisma_1.default.hospital.findMany({ select: { city: true }, distinct: ['city'], where: { city: { not: null } } });
+        res.json({
+            states: states.map(s => s.state).filter(Boolean),
+            districts: districts.map(d => d.district).filter(Boolean),
+            cities: cities.map(c => c.city).filter(Boolean)
+        });
+    }
+    catch (error) {
+        res.status(500).json({ message: 'Error fetching locations', error });
+    }
+});
+exports.getLocations = getLocations;
 const getHospitalById = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const hospital = yield prisma_1.default.hospital.findUnique({
             where: { id: parseInt(req.params.id) },
             include: {
                 assignments: { include: { executive: { include: { user: true } } } },
-                visits: { orderBy: { visitDate: 'desc' }, take: 5 },
-                followups: { orderBy: { followupDate: 'desc' }, take: 5 }
+                visits: { orderBy: { visitDate: 'desc' }, take: 10 },
+                followups: { orderBy: { followupDate: 'desc' }, take: 10 },
+                quotations: { orderBy: { createdAt: 'desc' }, take: 10 }
             }
         });
         if (!hospital)

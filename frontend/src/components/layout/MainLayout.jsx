@@ -26,10 +26,6 @@ const MainLayout = () => {
     navigate('/login');
   };
   const menuItems = [{
-    key: '/dashboard',
-    icon: <DashboardOutlined />,
-    label: 'Dashboard'
-  }, {
     key: '/hospitals',
     icon: <BankOutlined />,
     label: 'Hospitals'
@@ -50,6 +46,14 @@ const MainLayout = () => {
     icon: <AppstoreOutlined />,
     label: 'Products'
   }];
+  if (user?.role === 'Super Admin' || user?.role === 'Admin' || user?.role === 'Manager') {
+    menuItems.unshift({
+      key: '/dashboard',
+      icon: <DashboardOutlined />,
+      label: 'Dashboard'
+    });
+  }
+  
   if (user?.role === 'Super Admin' || user?.role === 'Admin') {
     menuItems.push({
       key: '/executives',
