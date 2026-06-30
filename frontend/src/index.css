@@ -36,12 +36,13 @@ body {
 }
 
 .ant-layout-sider {
-  background-color: #111827 !important;
-  box-shadow: var(--shadow-lg);
+  background-color: var(--card-bg) !important;
+  box-shadow: var(--shadow-sm);
+  border-right: 1px solid var(--border-color);
 }
 
-.ant-menu-dark {
-  background-color: #111827 !important;
+.ant-menu-light {
+  background-color: var(--card-bg) !important;
 }
 
 .ant-layout-header {

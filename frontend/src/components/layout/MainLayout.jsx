@@ -77,7 +77,7 @@ const MainLayout = () => {
       setDrawerVisible(false);
     }
   };
-  const renderMenu = () => <Menu theme="dark" mode="inline" selectedKeys={[location.pathname]} items={menuItems} onClick={handleMenuClick} />;
+  const renderMenu = () => <Menu theme="light" mode="inline" selectedKeys={[location.pathname]} items={menuItems} onClick={handleMenuClick} style={{ borderRight: 0 }} />;
   return <Layout style={{
     minHeight: '100vh'
   }}>
@@ -87,31 +87,32 @@ const MainLayout = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        color: 'white',
+        color: '#4F46E5',
         fontSize: 20,
         fontWeight: 'bold',
-        letterSpacing: 1
+        letterSpacing: 1,
+        borderBottom: '1px solid #E5E7EB'
       }}>
             {collapsed ? 'CRM' : 'MedCRM Pro'}
           </div>
           {renderMenu()}
         </Sider> : <Drawer title={<span style={{
-      color: 'white',
+      color: '#4F46E5',
       fontSize: 20,
       fontWeight: 'bold',
       letterSpacing: 1
     }}>MedCRM Pro</span>} placement="left" onClose={() => setDrawerVisible(false)} open={drawerVisible} styles={{
       header: {
-        backgroundColor: '#111827',
-        borderBottom: '1px solid rgba(255,255,255,0.1)',
+        backgroundColor: '#ffffff',
+        borderBottom: '1px solid #E5E7EB',
         padding: '16px 24px'
       },
       body: {
         padding: 0,
-        backgroundColor: '#111827'
+        backgroundColor: '#ffffff'
       }
     }} closeIcon={<span style={{
-      color: 'white'
+      color: '#111827'
     }}>✕</span>} width={200}>
           {renderMenu()}
         </Drawer>}
