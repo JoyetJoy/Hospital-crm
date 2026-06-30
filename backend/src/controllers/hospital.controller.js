@@ -44,7 +44,15 @@ const getHospitals = (req, res) => __awaiter(void 0, void 0, void 0, function* (
             where.district = String(district);
         if (city)
             where.city = String(city);
-        const hospitals = yield prisma_1.default.hospital.findMany({ where, orderBy: { name: 'asc' } });
+        const hospitals = yield prisma_1.default.hospital.findMany({ 
+            where, 
+            orderBy: { name: 'asc' },
+            include: {
+                _count: {
+                    select: { visits: true }
+                }
+            }
+        });
         res.json(hospitals);
     }
     catch (error) {

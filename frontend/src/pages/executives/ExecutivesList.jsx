@@ -197,6 +197,11 @@ const ExecutivesList = () => {
     form.setFieldsValue({ territory: '' });
   };
   const columns = [{
+    title: 'Sl No',
+    key: 'slNo',
+    render: (_, __, index) => index + 1,
+    width: 70
+  }, {
     title: 'Name',
     key: 'name',
     render: (_, record) => `${record.user?.firstName} ${record.user?.lastName}`
@@ -241,7 +246,7 @@ const ExecutivesList = () => {
       </div>
 
       <Card>
-        <Table scroll={{
+        <Table className="compact-table" size="small" scroll={{
         x: 'max-content'
       }} columns={columns} dataSource={executives} rowKey="id" loading={loading} />
       </Card>
@@ -355,7 +360,7 @@ const ExecutivesList = () => {
           </Col>
         </Row>
         
-        <Table
+        <Table className="compact-table" size="small"
           rowSelection={{
             selectedRowKeys: selectedHospitalIds,
             onChange: (newSelectedRowKeys) => setSelectedHospitalIds(newSelectedRowKeys)

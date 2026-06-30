@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Input, Select, Row, Col, Typography, Space, Card, Drawer, Form, message } from 'antd';
-import { PlusOutlined, EnvironmentOutlined, SearchOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons';
+import { Table, Button, Input, Select, Row, Col, Typography, Space, Card, Drawer, Form, message, Upload } from 'antd';
+import { PlusOutlined, EnvironmentOutlined, SearchOutlined, EditOutlined, EyeOutlined, UploadOutlined, FilterOutlined } from '@ant-design/icons';
 import { GoogleMap, useJsApiLoader, Marker, StandaloneSearchBox } from '@react-google-maps/api';
 import api from '../../services/api';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
+import * as XLSX from 'xlsx';
 const {
   Title
 } = Typography;
@@ -39,6 +40,12 @@ const HospitalsList = () => {
   const [searchBox, setSearchBox] = useState(null);
   const [mapCenter, setMapCenter] = useState(center);
   const [showFilters, setShowFilters] = useState(false);
+  const [tableParams, setTableParams] = useState({
+    pagination: {
+      current: 1,
+      pageSize: 10,
+    },
+  });
   const [form] = Form.useForm();
   const navigate = useNavigate();
   const {
@@ -138,11 +145,199 @@ const HospitalsList = () => {
     }
     setAddDrawerVisible(true);
   };
+  const handleFileUpload = (file) => {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        
+        const rows = json.slice(1);
+        let successCount = 0;
+        let errorCount = 0;
+        
+        message.loading({ content: 'Uploading and converting...', key: 'uploading', duration: 0 });
+
+        const geocodeAddress = (address) => {
+          return new Promise((resolve) => {
+            if (!window.google) return resolve(null);
+            const geocoder = new window.google.maps.Geocoder();
+            geocoder.geocode({ address }, (results, status) => {
+              if (status === "OK" && results[0]) {
+                const location = results[0].geometry.location;
+                const lat = location.lat();
+                const lng = location.lng();
+                
+                let city = '', state = '', district = '', pincode = '';
+                let neighborhood = '', sublocality2 = '', sublocality1 = '', sublocality = '';
+                
+                results[0].address_components.forEach(component => {
+                  if (component.types.includes('neighborhood') && !neighborhood) neighborhood = component.long_name;
+                  if (component.types.includes('sublocality_level_2') && !sublocality2) sublocality2 = component.long_name;
+                  if (component.types.includes('sublocality_level_1') && !sublocality1) sublocality1 = component.long_name;
+                  if (component.types.includes('sublocality') && !sublocality) sublocality = component.long_name;
+                  if (component.types.includes('locality') && !city) city = component.long_name;
+                  if (component.types.includes('administrative_area_level_1') && !state) state = component.long_name;
+                  if (component.types.includes('administrative_area_level_2') && !district) district = component.long_name;
+                  else if (component.types.includes('administrative_area_level_3') && !district) district = component.long_name;
+                  if (component.types.includes('postal_code') && !pincode) pincode = component.long_name;
+                });
+                
+                const finalCity = neighborhood || sublocality2 || sublocality1 || sublocality || city;
+                
+                resolve({ lat, lng, city: finalCity, state, district, pincode });
+              } else {
+                resolve(null);
+              }
+            });
+          });
+        };
+
+        for (const row of rows) {
+          if (!row || row.length < 3) continue;
+          
+          let district = row[1] || '';
+          const combinedCol = row[2] || '';
+          const ownerCol = row[3] || '';
+          const systemOfMedicine = row[4] || '';
+          const standard = row[5] || '';
+          const ownership = row[7] || '';
+          
+          const parts = combinedCol.split(',');
+          const name = parts[0]?.trim() || 'Unknown';
+          
+          const phoneMatch = combinedCol.match(/\b\d{10,11}\b/);
+          const mobileNumber = phoneMatch ? phoneMatch[0] : '';
+          
+          const emailMatch = combinedCol.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+          const email = emailMatch ? emailMatch[0] : '';
+          
+          let category = 'Private';
+          if (typeof ownership === 'string' && (ownership.includes('PUB') || ownership.includes('GOVT'))) {
+            category = 'Government';
+          }
+          
+          // Parse Contact Person
+          let contactPerson = '';
+          const inchargeMatch = ownerCol.match(/Incharge\s*-\s*([^,]+)/i);
+          if (inchargeMatch && inchargeMatch[1] && inchargeMatch[1].trim() !== '') {
+            contactPerson = inchargeMatch[1].trim();
+          } else {
+            const ownerMatch = ownerCol.match(/Owner\s*-\s*([^,]+)/i);
+            if (ownerMatch && ownerMatch[1] && ownerMatch[1].trim() !== '') {
+              contactPerson = ownerMatch[1].trim();
+            }
+          }
+
+          // Geocode address using Name and District
+          const cleanAddress = parts.slice(0, 3).join(', ');
+          const searchAddress = `${cleanAddress}, ${district}`;
+          const geoData = await geocodeAddress(searchAddress);
+          if (geoData) {
+            await new Promise(r => setTimeout(r, 250)); // Delay to prevent OVER_QUERY_LIMIT
+          }
+          
+          const payload = {
+            name: name,
+            district: geoData?.district || district,
+            city: geoData?.city || '',
+            state: geoData?.state || 'Kerala',
+            pincode: geoData?.pincode || '',
+            latitude: geoData?.lat || null,
+            longitude: geoData?.lng || null,
+            address: combinedCol,
+            mobileNumber: mobileNumber,
+            email: email,
+            category: category,
+            department: systemOfMedicine,
+            contactPerson: contactPerson,
+            notes: `Owner Details: ${ownerCol} | Standard: ${standard}`
+          };
+
+          try {
+            await api.post('/hospitals', payload);
+            successCount++;
+          } catch (err) {
+            errorCount++;
+          }
+        }
+        
+        message.success({ content: `Upload complete! Added: ${successCount}, Failed: ${errorCount}`, key: 'uploading', duration: 5 });
+        fetchHospitals();
+      } catch (err) {
+        console.error(err);
+        message.error({ content: 'Failed to process file', key: 'uploading' });
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    return false;
+  };
+  const reverseGeocode = (lat, lng) => {
+    if (!window.google) return;
+    const geocoder = new window.google.maps.Geocoder();
+    geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+      if (status === "OK" && results[0]) {
+        const addressComponents = results[0].address_components;
+        let city = '', state = '', district = '', pincode = '';
+        let neighborhood = '', sublocality2 = '', sublocality1 = '', sublocality = '';
+        
+        results.forEach(result => {
+          result.address_components.forEach(component => {
+            if (component.types.includes('neighborhood') && !neighborhood) neighborhood = component.long_name;
+            if (component.types.includes('sublocality_level_2') && !sublocality2) sublocality2 = component.long_name;
+            if (component.types.includes('sublocality_level_1') && !sublocality1) sublocality1 = component.long_name;
+            if (component.types.includes('sublocality') && !sublocality) sublocality = component.long_name;
+            if (component.types.includes('locality') && !city) city = component.long_name;
+            
+            if (component.types.includes('administrative_area_level_1') && !state) {
+              state = component.long_name;
+            }
+            if (component.types.includes('administrative_area_level_2') && !district) {
+              district = component.long_name;
+            } else if (component.types.includes('administrative_area_level_3') && !district) {
+              district = component.long_name;
+            }
+            if (component.types.includes('postal_code') && !pincode) {
+              pincode = component.long_name;
+            }
+          });
+        });
+        
+        const finalCity = neighborhood || sublocality2 || sublocality1 || sublocality || city;
+        form.setFieldsValue({
+          ...(finalCity && { city: finalCity }),
+          ...(state && { state: state }),
+          ...(district && { district: district }),
+          ...(pincode && { pincode: pincode })
+        });
+      }
+    });
+  };
+  const openAddHospitalDrawer = () => {
+    setAddDrawerVisible(true);
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition((position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        setMapCenter({ lat, lng });
+        setMarkerPos({ lat, lng });
+        form.setFieldsValue({ latitude: lat, longitude: lng });
+        reverseGeocode(lat, lng);
+      }, (error) => {
+        console.error("Error getting location: ", error);
+        message.warning("Could not get current location");
+      });
+    }
+  };
   const onMapClick = (e) => {
     const lat = e.latLng.lat();
     const lng = e.latLng.lng();
     setMarkerPos({ lat, lng });
     form.setFieldsValue({ latitude: lat, longitude: lng });
+    reverseGeocode(lat, lng);
   };
   const onLoadSearchBox = ref => setSearchBox(ref);
   const onPlacesChanged = () => {
@@ -154,9 +349,15 @@ const HospitalsList = () => {
       setMapCenter({ lat, lng });
       setMarkerPos({ lat, lng });
       form.setFieldsValue({ latitude: lat, longitude: lng });
+      reverseGeocode(lat, lng);
     }
   };
   const columns = [{
+    title: 'Sl No',
+    key: 'slNo',
+    render: (_, __, index) => (tableParams.pagination.current - 1) * tableParams.pagination.pageSize + index + 1,
+    width: 70
+  }, {
     title: 'Hospital Name',
     dataIndex: 'name',
     key: 'name'
@@ -177,6 +378,16 @@ const HospitalsList = () => {
     dataIndex: 'mobileNumber',
     key: 'mobileNumber'
   }, {
+    title: 'Bed Count',
+    dataIndex: 'bedCount',
+    key: 'bedCount',
+    sorter: (a, b) => (a.bedCount || 0) - (b.bedCount || 0),
+    defaultSortOrder: 'descend'
+  }, {
+    title: 'Visits Count',
+    key: 'visitsCount',
+    render: (_, record) => record._count?.visits || 0
+  }, {
     title: 'Actions',
     key: 'actions',
     fixed: 'right',
@@ -191,21 +402,31 @@ const HospitalsList = () => {
       <div className="page-header">
         <Title level={3} className="page-title">Hospitals Directory</Title>
         <Space>
-          <Button icon={<SearchOutlined />} onClick={() => setShowFilters(!showFilters)}>{showFilters ? 'Hide Filters' : 'Filters'}</Button>
+          <Input 
+            placeholder="Search name, city..." 
+            prefix={<SearchOutlined />} 
+            value={searchTerm} 
+            onChange={e => setSearchTerm(e.target.value)} 
+            style={{ width: 200 }} 
+            allowClear
+          />
+          <Button icon={<FilterOutlined />} onClick={() => setShowFilters(!showFilters)}>{showFilters ? 'Hide Filters' : 'Filters'}</Button>
           <Button icon={<EnvironmentOutlined />} onClick={() => setMapVisible(true)}>Map View</Button>
-          {isAdmin && <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddDrawerVisible(true)}>Add Hospital</Button>}
+          {isAdmin && (
+            <Upload beforeUpload={handleFileUpload} accept=".xlsx, .xls, .csv" showUploadList={false}>
+              <Button icon={<UploadOutlined />}>Upload Excel</Button>
+            </Upload>
+          )}
+          {isAdmin && <Button type="primary" icon={<PlusOutlined />} onClick={openAddHospitalDrawer}>Add Hospital</Button>}
         </Space>
       </div>
 
       <Drawer title="Filter Hospitals" placement="right" width={300} onClose={() => setShowFilters(false)} open={showFilters}>
         <Space direction="vertical" style={{ width: '100%' }} size="large">
-          <div>
-            <Typography.Text strong>Search</Typography.Text>
-            <Input placeholder="Name, city, or pincode" prefix={<SearchOutlined />} onChange={e => setSearchTerm(e.target.value)} style={{ marginTop: 8 }} />
-          </div>
+
           <div>
             <Typography.Text strong>Category</Typography.Text>
-            <Select placeholder="Select Category" style={{ width: '100%', marginTop: 8 }} allowClear onChange={setFilterCategory}>
+            <Select placeholder="Select Category" style={{ width: '100%', marginTop: 8 }} allowClear value={filterCategory || undefined} onChange={setFilterCategory}>
               <Option value="Government">Government</Option>
               <Option value="Private">Private</Option>
               <Option value="EHSC">EHSC</Option>
@@ -213,32 +434,39 @@ const HospitalsList = () => {
           </div>
           <div>
             <Typography.Text strong>State</Typography.Text>
-            <Select placeholder="Select State" style={{ width: '100%', marginTop: 8 }} allowClear onChange={setFilterState}>
+            <Select placeholder="Select State" style={{ width: '100%', marginTop: 8 }} allowClear value={filterState || undefined} onChange={setFilterState}>
               {locations.states.map(s => <Option key={s} value={s}>{s}</Option>)}
             </Select>
           </div>
           <div>
             <Typography.Text strong>District</Typography.Text>
-            <Select placeholder="Select District" style={{ width: '100%', marginTop: 8 }} allowClear onChange={setFilterDistrict}>
+            <Select placeholder="Select District" style={{ width: '100%', marginTop: 8 }} allowClear value={filterDistrict || undefined} onChange={setFilterDistrict}>
               {locations.districts.map(d => <Option key={d} value={d}>{d}</Option>)}
             </Select>
           </div>
           <div>
             <Typography.Text strong>City</Typography.Text>
-            <Select placeholder="Select City" style={{ width: '100%', marginTop: 8 }} allowClear onChange={setFilterCity}>
+            <Select placeholder="Select City" style={{ width: '100%', marginTop: 8 }} allowClear value={filterCity || undefined} onChange={setFilterCity}>
               {locations.cities.map(c => <Option key={c} value={c}>{c}</Option>)}
             </Select>
           </div>
-          <Button type="primary" block onClick={() => setShowFilters(false)}>Apply Filters</Button>
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <Button type="primary" block onClick={() => setShowFilters(false)}>Apply Filters</Button>
+            <Button block onClick={() => {
+              setSearchTerm('');
+              setFilterCategory('');
+              setFilterState(null);
+              setFilterDistrict(null);
+              setFilterCity(null);
+            }}>Clear Filters</Button>
+          </Space>
         </Space>
       </Drawer>
 
       <Card>
-        <Table scroll={{
+        <Table className="compact-table" size="small" scroll={{
         x: 'max-content'
-      }} columns={columns} dataSource={hospitals} rowKey="id" loading={loading} pagination={{
-        pageSize: 10
-      }} />
+      }} columns={columns} dataSource={hospitals} rowKey="id" loading={loading} pagination={tableParams.pagination} onChange={(pagination) => setTableParams({ pagination })} />
       </Card>
 
       <Drawer title="Hospital Locations" placement="right" width={800} onClose={() => setMapVisible(false)} open={mapVisible}>
@@ -333,7 +561,25 @@ const HospitalsList = () => {
           <Form.Item name="longitude" style={{ display: 'none' }}><Input /></Form.Item>
           
           <div style={{ marginBottom: 16 }}>
-            <Typography.Text strong>Select Location on Map</Typography.Text>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography.Text strong>Select Location on Map</Typography.Text>
+              <Button size="small" type="primary" icon={<EnvironmentOutlined />} onClick={() => {
+                if ("geolocation" in navigator) {
+                  navigator.geolocation.getCurrentPosition((position) => {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    setMapCenter({ lat, lng });
+                    setMarkerPos({ lat, lng });
+                    form.setFieldsValue({ latitude: lat, longitude: lng });
+                    reverseGeocode(lat, lng);
+                    message.success("Current location captured");
+                  }, (error) => {
+                    console.error("Error getting location: ", error);
+                    message.warning("Could not get current location. Check browser permissions.");
+                  });
+                }
+              }}>Use Current Location</Button>
+            </div>
             <div style={{ marginTop: 8 }}>
               {isLoaded ? (
                 <div style={{ position: 'relative' }}>

@@ -62,6 +62,11 @@ const ProductsList = () => {
     }
   };
   const columns = [{
+    title: 'Sl No',
+    key: 'slNo',
+    render: (_, __, index) => index + 1,
+    width: 70
+  }, {
     title: 'SKU',
     dataIndex: 'sku',
     key: 'sku'
@@ -101,7 +106,7 @@ const ProductsList = () => {
       </div>
 
       <Card>
-        <Table scroll={{
+        <Table className="compact-table" size="small" scroll={{
         x: 'max-content'
       }} columns={columns} dataSource={products} rowKey="id" loading={loading} />
       </Card>

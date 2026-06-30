@@ -77,6 +77,12 @@ const QuotationsList = () => {
 
   const columns = [
     {
+      title: 'Sl No',
+      key: 'slNo',
+      render: (_, __, index) => index + 1,
+      width: 70
+    },
+    {
       title: 'Date',
       dataIndex: 'date',
       key: 'date',
@@ -125,7 +131,7 @@ const QuotationsList = () => {
       </div>
 
       <Card>
-        <Table scroll={{ x: 'max-content' }} columns={columns} dataSource={quotations} rowKey="id" loading={loading} />
+        <Table className="compact-table" size="small" scroll={{ x: 'max-content' }} columns={columns} dataSource={quotations} rowKey="id" loading={loading} />
       </Card>
 
       <Drawer title="Upload Quotation" placement="right" width={500} onClose={() => setDrawerVisible(false)} open={drawerVisible}>

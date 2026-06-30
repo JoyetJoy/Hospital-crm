@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Card, Typography, Tag, Space, Drawer, Form, Input, DatePicker, Select, message, Switch, Modal, Descriptions, Upload } from 'antd';
-import { PlusOutlined, UploadOutlined, DownloadOutlined } from '@ant-design/icons';
+import { PlusOutlined, UploadOutlined, DownloadOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons';
 import api from '../../services/api';
 import dayjs from 'dayjs';
 const {
@@ -22,6 +22,7 @@ const VisitsList = () => {
   
   const [visitModalVisible, setVisitModalVisible] = useState(false);
   const [selectedVisit, setSelectedVisit] = useState(null);
+  const [editingVisit, setEditingVisit] = useState(null);
   const [fileList, setFileList] = useState([]);
   useEffect(() => {
     fetchVisits();
@@ -70,23 +71,54 @@ const VisitsList = () => {
       if (values.contactName) formData.append('contactName', values.contactName);
       if (values.contactPhone) formData.append('contactPhone', values.contactPhone);
       if (values.contactEmail) formData.append('contactEmail', values.contactEmail);
+      if (values.competitor) formData.append('competitor', values.competitor);
+      if (values.visitLog) formData.append('visitLog', values.visitLog);
 
-      await api.post('/visits', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
-      message.success('Visit added successfully');
+      if (editingVisit) {
+        await api.put(`/visits/${editingVisit.id}`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        message.success('Visit updated successfully');
+      } else {
+        await api.post('/visits', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        message.success('Visit added successfully');
+      }
       setDrawerVisible(false);
       form.resetFields();
       setFileList([]);
       setCreateFollowup(false);
+      setEditingVisit(null);
       fetchVisits();
     } catch (error) {
-      message.error('Failed to add visit');
+      message.error(editingVisit ? 'Failed to update visit' : 'Failed to add visit');
     }
   };
+
+  const handleEdit = (record) => {
+    setEditingVisit(record);
+    form.setFieldsValue({
+      hospitalId: record.hospitalId,
+      visitDate: dayjs(record.visitDate),
+      visitTime: record.visitTime,
+      requirement: record.requirement,
+      competitor: record.competitor,
+      visitLog: record.visitLog,
+      contactName: record.contactName,
+      contactPhone: record.contactPhone,
+      contactEmail: record.contactEmail,
+      remarks: record.remarks,
+      notes: record.notes,
+    });
+    setDrawerVisible(true);
+  };
   const columns = [{
+    title: 'Sl No',
+    key: 'slNo',
+    render: (_, __, index) => index + 1,
+    width: 70
+  }, {
     title: 'Date',
     dataIndex: 'visitDate',
     key: 'visitDate',
@@ -118,10 +150,13 @@ const VisitsList = () => {
     title: 'Actions',
     key: 'actions',
     render: (_, record) => (
-      <Button type="link" size="small" onClick={() => {
-        setSelectedVisit(record);
-        setVisitModalVisible(true);
-      }}>View Details</Button>
+      <Space>
+        <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => {
+          setSelectedVisit(record);
+          setVisitModalVisible(true);
+        }} />
+        <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
+      </Space>
     )
   }];
   const handleExport = async () => {
@@ -148,13 +183,17 @@ const VisitsList = () => {
       </div>
 
       <Card>
-        <Table scroll={{
+        <Table className="compact-table" size="small" scroll={{
         x: 'max-content'
       }} columns={columns} dataSource={visits} rowKey="id" loading={loading} />
       </Card>
 
-      <Drawer title="Log New Visit" placement="right" width={500} onClose={() => setDrawerVisible(false)} open={drawerVisible}>
-        <Form form={form} layout="vertical" onFinish={onFinish}>
+      <Drawer title={editingVisit ? "Edit Visit" : "Log New Visit"} placement="right" width={500} onClose={() => {
+        setDrawerVisible(false);
+        setEditingVisit(null);
+        form.resetFields();
+      }} open={drawerVisible}>
+        <Form form={form} layout="vertical" onFinish={onFinish} className="compact-form">
           <Form.Item name="hospitalId" label="Hospital" rules={[{
           required: true
         }]}>
@@ -183,19 +222,37 @@ const VisitsList = () => {
           <Form.Item name="requirement" label="Requirement" rules={[{ required: true }]}>
             <Input placeholder="Enter requirements discussed" />
           </Form.Item>
+
+          <div style={{ display: 'flex', width: '100%', gap: '8px' }}>
+            <Form.Item name="competitor" label="Competitor" style={{ flex: 1 }}>
+              <Input placeholder="Competitors present?" />
+            </Form.Item>
+            
+            <Form.Item name="priority" label="Priority" initialValue="Medium" style={{ flex: 1 }}>
+              <Select style={{ width: '100%' }}>
+                <Select.Option value="High">High</Select.Option>
+                <Select.Option value="Medium">Medium</Select.Option>
+                <Select.Option value="Low">Low</Select.Option>
+              </Select>
+            </Form.Item>
+          </div>
+          
+          <Form.Item name="visitLog" label="Visit Log">
+            <TextArea rows={2} placeholder="Detailed log of the visit..." />
+          </Form.Item>
           
           <Card size="small" title="Contact Person (Optional)" style={{ marginBottom: 16 }}>
-            <Form.Item name="contactName" label="Name" style={{ marginBottom: 12 }}>
-              <Input placeholder="Contact person name" />
-            </Form.Item>
-            <Space style={{ display: 'flex', width: '100%' }}>
+            <div style={{ display: 'flex', width: '100%', gap: '8px' }}>
+              <Form.Item name="contactName" label="Name" style={{ flex: 1, marginBottom: 0 }}>
+                <Input placeholder="Name" />
+              </Form.Item>
               <Form.Item name="contactPhone" label="Phone" style={{ flex: 1, marginBottom: 0 }}>
-                <Input placeholder="Phone number" />
+                <Input placeholder="Phone" />
               </Form.Item>
               <Form.Item name="contactEmail" label="Email" style={{ flex: 1, marginBottom: 0 }}>
-                <Input type="email" placeholder="Email address" />
+                <Input type="email" placeholder="Email" />
               </Form.Item>
-            </Space>
+            </div>
           </Card>
 
           <Form.Item name="remarks" label="Remarks">
@@ -210,14 +267,14 @@ const VisitsList = () => {
           </Form.Item>
           
           {createFollowup && (
-            <Space style={{ display: 'flex' }}>
-              <Form.Item name="followupDate" label="Follow-up Date" rules={[{ required: true }]} style={{ flex: 1 }}>
-                <DatePicker style={{ width: '100%' }} />
-              </Form.Item>
-              <Form.Item name="followupTime" label="Follow-up Time" style={{ flex: 1 }}>
-                <Input type="time" />
-              </Form.Item>
-            </Space>
+            <div style={{ display: 'flex', width: '100%', gap: '8px' }}>
+            <Form.Item name="followupDate" label="Follow-up Date" rules={[{ required: true }]} style={{ flex: 1 }}>
+              <DatePicker style={{ width: '100%' }} />
+            </Form.Item>
+            <Form.Item name="followupTime" label="Follow-up Time" style={{ flex: 1 }}>
+              <Input type="time" style={{ width: '100%' }} />
+            </Form.Item>
+          </div>
           )}
           
           <Form.Item label="Upload Quotation PDF">
@@ -242,6 +299,11 @@ const VisitsList = () => {
             {selectedVisit.contactName && <Descriptions.Item label="Contact Name">{selectedVisit.contactName}</Descriptions.Item>}
             {selectedVisit.contactPhone && <Descriptions.Item label="Contact Phone">{selectedVisit.contactPhone}</Descriptions.Item>}
             {selectedVisit.contactEmail && <Descriptions.Item label="Contact Email">{selectedVisit.contactEmail}</Descriptions.Item>}
+            <Descriptions.Item label="Competitor">{selectedVisit.competitor || 'N/A'}</Descriptions.Item>
+            <Descriptions.Item label="Priority">
+              {selectedVisit.priority ? <Tag color={selectedVisit.priority === 'High' ? 'red' : selectedVisit.priority === 'Medium' ? 'orange' : 'blue'}>{selectedVisit.priority}</Tag> : 'N/A'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Visit Log">{selectedVisit.visitLog || 'N/A'}</Descriptions.Item>
             <Descriptions.Item label="Remarks">{selectedVisit.remarks}</Descriptions.Item>
             <Descriptions.Item label="Notes">{selectedVisit.notes}</Descriptions.Item>
           </Descriptions>

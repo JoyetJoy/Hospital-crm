@@ -51,11 +51,25 @@ const getVisitById = (req, res) => __awaiter(void 0, void 0, void 0, function* (
 exports.getVisitById = getVisitById;
 const createVisit = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const { hospitalId, executiveId, visitDate, visitTime, requirement, notes, remarks, createFollowup, followupDate, followupTime, contactName, contactPhone, contactEmail } = req.body;
+        const { hospitalId, executiveId, visitDate, visitTime, requirement, notes, remarks, createFollowup, followupDate, followupTime, contactName, contactPhone, contactEmail, competitor, visitLog, priority } = req.body;
         
         let finalExecutiveId = parseInt(executiveId);
         if (isNaN(finalExecutiveId) && req.user && req.user.executiveId) {
             finalExecutiveId = req.user.executiveId;
+        }
+
+        if (isNaN(finalExecutiveId)) {
+            return res.status(400).json({ message: 'Executive ID is required. Only executives can log visits implicitly, or an executiveId must be provided.' });
+        }
+
+        const finalHospitalId = parseInt(hospitalId);
+        if (isNaN(finalHospitalId)) {
+            return res.status(400).json({ message: 'Valid Hospital ID is required.' });
+        }
+
+        const finalVisitDate = new Date(visitDate);
+        if (isNaN(finalVisitDate.getTime())) {
+            return res.status(400).json({ message: 'Valid visitDate is required.' });
         }
 
         const files = req.files;
@@ -63,9 +77,9 @@ const createVisit = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         
         const visit = yield prisma_1.default.visit.create({
             data: {
-                hospitalId: parseInt(hospitalId),
+                hospitalId: finalHospitalId,
                 executiveId: finalExecutiveId,
-                visitDate: new Date(visitDate),
+                visitDate: finalVisitDate,
                 visitTime,
                 requirement,
                 notes,
@@ -73,16 +87,19 @@ const createVisit = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
                 images,
                 contactName,
                 contactPhone,
-                contactEmail
+                contactEmail,
+                competitor,
+                visitLog,
+                priority
             }
         });
 
         if (images) {
             yield prisma_1.default.quotation.create({
                 data: {
-                    hospitalId: parseInt(hospitalId),
+                    hospitalId: finalHospitalId,
                     executiveId: finalExecutiveId,
-                    date: new Date(visitDate),
+                    date: finalVisitDate,
                     time: visitTime,
                     pdfPath: images.split(',')[0]
                 }
@@ -92,7 +109,7 @@ const createVisit = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         if (createFollowup === 'true' && followupDate) {
             yield prisma_1.default.followup.create({
                 data: {
-                    hospitalId: parseInt(hospitalId),
+                    hospitalId: finalHospitalId,
                     visitId: visit.id,
                     followupDate: new Date(followupDate),
                     followupTime: followupTime || null,
@@ -114,10 +131,10 @@ const createVisit = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
 exports.createVisit = createVisit;
 const updateVisit = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const { visitDate, visitTime, requirement, notes, remarks } = req.body;
+        const { visitDate, visitTime, requirement, notes, remarks, competitor, visitLog, priority, contactName, contactPhone, contactEmail } = req.body;
         const updateData = {
             visitDate: visitDate ? new Date(visitDate) : undefined,
-            visitTime, requirement, notes, remarks
+            visitTime, requirement, notes, remarks, competitor, visitLog, priority, contactName, contactPhone, contactEmail
         };
         const files = req.files;
         if (files && files.length > 0) {
@@ -167,7 +184,10 @@ const exportVisits = (req, res) => __awaiter(void 0, void 0, void 0, function* (
             { header: 'Phone', key: 'phone', width: 15 },
             { header: 'Email', key: 'email', width: 25 },
             { header: 'Requirement', key: 'requirement', width: 30 },
-            { header: 'Remark', key: 'remark', width: 30 }
+            { header: 'Priority', key: 'priority', width: 15 },
+            { header: 'Remark', key: 'remark', width: 30 },
+            { header: 'Competitor', key: 'competitor', width: 20 },
+            { header: 'Visit Log', key: 'visitLog', width: 30 }
         ];
 
         // Style the header row
@@ -191,7 +211,10 @@ const exportVisits = (req, res) => __awaiter(void 0, void 0, void 0, function* (
                 phone: visit.contactPhone || visit.hospital?.mobileNumber || '',
                 email: visit.contactEmail || visit.hospital?.email || '',
                 requirement: visit.requirement || '',
-                remark: visit.remarks || ''
+                priority: visit.priority || '',
+                remark: visit.remarks || '',
+                competitor: visit.competitor || '',
+                visitLog: visit.visitLog || ''
             });
         });
 

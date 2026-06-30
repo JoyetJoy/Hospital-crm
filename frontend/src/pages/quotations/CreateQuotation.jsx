@@ -98,6 +98,11 @@ const CreateQuotation = () => {
     }
   };
   const columns = [{
+    title: 'Sl No',
+    key: 'slNo',
+    render: (_, __, index) => index + 1,
+    width: 70
+  }, {
     title: 'Product',
     dataIndex: 'name',
     key: 'name'
@@ -166,7 +171,7 @@ const CreateQuotation = () => {
       }} onChange={addItem} value={null}>
             {products.map(p => <Option key={p.id} value={p.id}>{p.productName} - ₹{p.price}</Option>)}
           </Select>}>
-          <Table scroll={{
+          <Table className="compact-table" size="small" scroll={{
           x: 'max-content'
         }} columns={columns} dataSource={items} rowKey="productId" pagination={false} />
           <Divider />
