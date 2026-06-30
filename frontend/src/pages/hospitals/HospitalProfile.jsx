@@ -1,15 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, Descriptions, Tabs, Timeline, Tag, Typography, Spin, Row, Col, Space, Button, Drawer, Form, Input, DatePicker, Select, Upload, message, Switch, Modal } from 'antd';
-import { EnvironmentOutlined, PhoneOutlined, MailOutlined, AppstoreOutlined, MedicineBoxOutlined, PlusOutlined, UploadOutlined, DownloadOutlined } from '@ant-design/icons';
+import { EnvironmentOutlined, PhoneOutlined, MailOutlined, AppstoreOutlined, MedicineBoxOutlined, PlusOutlined, UploadOutlined, DownloadOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons';
+import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
 import api from '../../services/api';
+import dayjs from 'dayjs';
 const {
   Title,
   Text
 } = Typography;
 const { Option } = Select;
 const { TextArea } = Input;
+const libraries = ['drawing', 'geometry', 'places'];
+
 const HospitalProfile = () => {
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAP_API?.split('key=')[1]?.split('&')[0] || '',
+    libraries
+  });
   const {
     id
   } = useParams();
@@ -22,6 +31,7 @@ const HospitalProfile = () => {
   
   const [visitModalVisible, setVisitModalVisible] = useState(false);
   const [selectedVisit, setSelectedVisit] = useState(null);
+  const [editingVisit, setEditingVisit] = useState(null);
   
   const [quoteDrawerVisible, setQuoteDrawerVisible] = useState(false);
   const [quoteForm] = Form.useForm();
@@ -65,25 +75,51 @@ const HospitalProfile = () => {
       if (values.contactName) formData.append('contactName', values.contactName);
       if (values.contactPhone) formData.append('contactPhone', values.contactPhone);
       if (values.contactEmail) formData.append('contactEmail', values.contactEmail);
+      if (values.competitor) formData.append('competitor', values.competitor);
+      if (values.visitLog) formData.append('visitLog', values.visitLog);
 
-      await api.post('/visits', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      if (editingVisit) {
+        await api.put(`/visits/${editingVisit.id}`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+      } else {
+        await api.post('/visits', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+      }
 
       if (selectedFollowupId) {
         await api.put(`/followups/${selectedFollowupId}`, { status: 'Completed' });
         setSelectedFollowupId(null);
       }
 
-      message.success('Visit logged successfully');
+      message.success(editingVisit ? 'Visit updated successfully' : 'Visit logged successfully');
       setDrawerVisible(false);
       form.resetFields();
       setFileList([]);
       setCreateFollowup(false);
+      setEditingVisit(null);
       fetchHospital();
     } catch (error) {
-      message.error('Failed to log visit');
+      message.error('Failed to save visit');
     }
+  };
+
+  const handleEdit = (visit) => {
+    setEditingVisit(visit);
+    form.setFieldsValue({
+      visitDate: dayjs(visit.visitDate),
+      visitTime: visit.visitTime,
+      requirement: visit.requirement,
+      competitor: visit.competitor,
+      visitLog: visit.visitLog,
+      contactName: visit.contactName,
+      contactPhone: visit.contactPhone,
+      contactEmail: visit.contactEmail,
+      remarks: visit.remarks,
+      notes: visit.notes,
+    });
+    setDrawerVisible(true);
   };
 
   const onQuoteFinish = async values => {
@@ -144,20 +180,40 @@ const HospitalProfile = () => {
 
       <Row gutter={[24, 24]}>
         <Col xs={24} md={8}>
-          <Card title="Contact Information" style={{
-          height: '100%'
-        }}>
-            <Descriptions column={1} labelStyle={{ fontWeight: 500, color: '#6B7280', minWidth: '130px' }} contentStyle={{ color: '#111827' }}>
-              <Descriptions.Item label={<Space><PhoneOutlined /><span>Contact Person</span></Space>}>{hospital.contactPerson || 'N/A'}</Descriptions.Item>
-              <Descriptions.Item label={<Space><PhoneOutlined /><span>Mobile</span></Space>}>{hospital.mobileNumber || 'N/A'}</Descriptions.Item>
-              <Descriptions.Item label={<Space><MailOutlined /><span>Email</span></Space>}>{hospital.email || 'N/A'}</Descriptions.Item>
-              <Descriptions.Item label={<Space><EnvironmentOutlined /><span>Address</span></Space>}>
-                {hospital.address}, {hospital.city}, {hospital.state} - {hospital.pincode}
-              </Descriptions.Item>
-              <Descriptions.Item label={<Space><AppstoreOutlined /><span>Departments</span></Space>}>{hospital.department || 'N/A'}</Descriptions.Item>
-              <Descriptions.Item label={<Space><MedicineBoxOutlined /><span>Bed Count</span></Space>}>{hospital.bedCount || 'N/A'}</Descriptions.Item>
-            </Descriptions>
-          </Card>
+          <Space direction="vertical" style={{ width: '100%' }} size="large">
+            <Card title="Contact Information">
+              <Descriptions column={1} colon={false} labelStyle={{ fontWeight: 500, color: '#6B7280', minWidth: '150px' }} contentStyle={{ color: '#111827' }}>
+                <Descriptions.Item label={<Space><PhoneOutlined style={{ transform: 'scaleX(-1)' }} /><span>Contact Person:</span></Space>}>{hospital.contactPerson || 'N/A'}</Descriptions.Item>
+                <Descriptions.Item label={<Space><PhoneOutlined style={{ transform: 'scaleX(-1)' }} /><span>Mobile:</span></Space>}>{hospital.mobileNumber || 'N/A'}</Descriptions.Item>
+                <Descriptions.Item label={<Space><MailOutlined /><span>Email:</span></Space>}>{hospital.email || 'N/A'}</Descriptions.Item>
+                <Descriptions.Item label={<Space><EnvironmentOutlined /><span>Address:</span></Space>}>
+                  {hospital.address}, {hospital.city}, {hospital.state} - {hospital.pincode}
+                </Descriptions.Item>
+                <Descriptions.Item label={<Space><AppstoreOutlined /><span>Departments:</span></Space>}>{hospital.department || 'N/A'}</Descriptions.Item>
+                <Descriptions.Item label={<Space><MedicineBoxOutlined /><span>Bed Count:</span></Space>}>{hospital.bedCount || 'N/A'}</Descriptions.Item>
+              </Descriptions>
+            </Card>
+
+            {hospital.latitude && hospital.longitude && (
+              <Card 
+                title="Location" 
+                extra={<Button type="link" href={`https://www.google.com/maps/dir/?api=1&destination=${hospital.latitude},${hospital.longitude}`} target="_blank" rel="noopener noreferrer">Get Directions</Button>}
+                styles={{ body: { padding: 0, overflow: 'hidden', borderRadius: '0 0 12px 12px' } }}
+              >
+                {isLoaded ? (
+                  <GoogleMap
+                    mapContainerStyle={{ width: '100%', height: '250px' }}
+                    center={{ lat: hospital.latitude, lng: hospital.longitude }}
+                    zoom={15}
+                  >
+                    <Marker position={{ lat: hospital.latitude, lng: hospital.longitude }} />
+                  </GoogleMap>
+                ) : (
+                  <div style={{ padding: 20, textAlign: 'center' }}><Spin /></div>
+                )}
+              </Card>
+            )}
+          </Space>
         </Col>
         <Col xs={24} md={16}>
           <Card style={{
@@ -177,13 +233,17 @@ const HospitalProfile = () => {
                         <br />
                         <Text type="secondary">Executive: {visit.executive?.user?.firstName}</Text>
                         <br />
+                        {visit.priority && <Text>Priority: <Tag color={visit.priority === 'High' ? 'red' : visit.priority === 'Medium' ? 'orange' : 'blue'}>{visit.priority}</Tag><br/></Text>}
                         {visit.remarks && <Text>Remarks: {visit.remarks}</Text>}
                         {visit.notes && <><br/><Text type="secondary">Notes: {visit.notes}</Text></>}
                         <br />
-                        <Button type="link" size="small" style={{ padding: 0, marginTop: 4 }} onClick={() => {
-                          setSelectedVisit(visit);
-                          setVisitModalVisible(true);
-                        }}>View Details</Button>
+                        <Space>
+                          <Button type="link" size="small" icon={<EyeOutlined />} style={{ padding: 0, marginTop: 4 }} onClick={() => {
+                            setSelectedVisit(visit);
+                            setVisitModalVisible(true);
+                          }} />
+                          <Button type="link" size="small" icon={<EditOutlined />} style={{ marginTop: 4 }} onClick={() => handleEdit(visit)} />
+                        </Space>
                       </Timeline.Item>)}
                   </Timeline> : <Text>No visits recorded yet.</Text>}
               </Tabs.TabPane>
@@ -227,32 +287,54 @@ const HospitalProfile = () => {
             </Col>
           </Row>
 
-          <Drawer title="Log New Visit" placement="right" width={500} onClose={() => setDrawerVisible(false)} open={drawerVisible}>
-            <Form form={form} layout="vertical" onFinish={onFinish}>
-              <Space style={{ display: 'flex' }}>
+          <Drawer title={editingVisit ? "Edit Visit" : "Log New Visit"} placement="right" width={500} onClose={() => {
+            setDrawerVisible(false);
+            setEditingVisit(null);
+            form.resetFields();
+          }} open={drawerVisible}>
+            <Form form={form} layout="vertical" onFinish={onFinish} className="compact-form">
+              <div style={{ display: 'flex', width: '100%', gap: '8px' }}>
                 <Form.Item name="visitDate" label="Date" rules={[{ required: true }]} style={{ flex: 1 }}>
                   <DatePicker style={{ width: '100%' }} />
                 </Form.Item>
                 <Form.Item name="visitTime" label="Time" style={{ flex: 1 }}>
-                  <Input type="time" />
+                  <Input type="time" style={{ width: '100%' }} />
                 </Form.Item>
-              </Space>
+              </div>
               <Form.Item name="requirement" label="Requirement" rules={[{ required: true }]}>
             <Input placeholder="Enter requirements discussed" />
           </Form.Item>
           
-          <Card size="small" title="Contact Person (Optional)" style={{ marginBottom: 16 }}>
-            <Form.Item name="contactName" label="Name" style={{ marginBottom: 12 }}>
-              <Input placeholder="Contact person name" />
+          <div style={{ display: 'flex', width: '100%', gap: '8px' }}>
+            <Form.Item name="competitor" label="Competitor" style={{ flex: 1 }}>
+              <Input placeholder="Competitors present?" />
             </Form.Item>
-            <Space style={{ display: 'flex', width: '100%' }}>
+            
+            <Form.Item name="priority" label="Priority" initialValue="Medium" style={{ flex: 1 }}>
+              <Select style={{ width: '100%' }}>
+                <Select.Option value="High">High</Select.Option>
+                <Select.Option value="Medium">Medium</Select.Option>
+                <Select.Option value="Low">Low</Select.Option>
+              </Select>
+            </Form.Item>
+          </div>
+          
+          <Form.Item name="visitLog" label="Visit Log">
+            <TextArea rows={2} placeholder="Detailed log of the visit..." />
+          </Form.Item>
+          
+          <Card size="small" title="Contact Person (Optional)" style={{ marginBottom: 16 }}>
+            <div style={{ display: 'flex', width: '100%', gap: '8px' }}>
+              <Form.Item name="contactName" label="Name" style={{ flex: 1, marginBottom: 0 }}>
+                <Input placeholder="Name" />
+              </Form.Item>
               <Form.Item name="contactPhone" label="Phone" style={{ flex: 1, marginBottom: 0 }}>
-                <Input placeholder="Phone number" />
+                <Input placeholder="Phone" />
               </Form.Item>
               <Form.Item name="contactEmail" label="Email" style={{ flex: 1, marginBottom: 0 }}>
-                <Input type="email" placeholder="Email address" />
+                <Input type="email" placeholder="Email" />
               </Form.Item>
-            </Space>
+            </div>
           </Card>
 
           <Form.Item name="remarks" label="Remarks">
@@ -314,9 +396,14 @@ const HospitalProfile = () => {
                 <Descriptions.Item label="Date">{new Date(selectedVisit.visitDate).toLocaleDateString()}</Descriptions.Item>
                 {selectedVisit.visitTime && <Descriptions.Item label="Time">{selectedVisit.visitTime}</Descriptions.Item>}
                 <Descriptions.Item label="Requirement">{selectedVisit.requirement}</Descriptions.Item>
-                {selectedVisit.contactName && <Descriptions.Item label="Contact Name">{selectedVisit.contactName}</Descriptions.Item>}
-                {selectedVisit.contactPhone && <Descriptions.Item label="Contact Phone">{selectedVisit.contactPhone}</Descriptions.Item>}
-                {selectedVisit.contactEmail && <Descriptions.Item label="Contact Email">{selectedVisit.contactEmail}</Descriptions.Item>}
+                <Descriptions.Item label="Contact Name">{selectedVisit.contactName || 'N/A'}</Descriptions.Item>
+                <Descriptions.Item label="Contact Phone">{selectedVisit.contactPhone || 'N/A'}</Descriptions.Item>
+                <Descriptions.Item label="Contact Email">{selectedVisit.contactEmail || 'N/A'}</Descriptions.Item>
+                <Descriptions.Item label="Competitor">{selectedVisit.competitor || 'None'}</Descriptions.Item>
+                <Descriptions.Item label="Priority">
+                  {selectedVisit.priority ? <Tag color={selectedVisit.priority === 'High' ? 'red' : selectedVisit.priority === 'Medium' ? 'orange' : 'blue'}>{selectedVisit.priority}</Tag> : 'N/A'}
+                </Descriptions.Item>
+                <Descriptions.Item label="Visit Log">{selectedVisit.visitLog || 'N/A'}</Descriptions.Item>
                 <Descriptions.Item label="Remarks">{selectedVisit.remarks}</Descriptions.Item>
                 <Descriptions.Item label="Notes">{selectedVisit.notes}</Descriptions.Item>
               </Descriptions>

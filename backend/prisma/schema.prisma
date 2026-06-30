@@ -101,6 +101,10 @@ model Visit {
   contactPhone String?
   contactEmail String?
   
+  competitor   String?
+  visitLog     String?
+  priority     String?
+  
   followups    Followup[]
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

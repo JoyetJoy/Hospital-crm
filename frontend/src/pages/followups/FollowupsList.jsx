@@ -129,6 +129,12 @@ const FollowupsList = () => {
 
   const columns = [
     {
+      title: 'Sl No',
+      key: 'slNo',
+      render: (_, __, index) => index + 1,
+      width: 70
+    },
+    {
       title: 'Date',
       dataIndex: 'followupDate',
       key: 'followupDate',
@@ -182,7 +188,7 @@ const FollowupsList = () => {
       </div>
 
       <Card>
-        <Table scroll={{ x: 'max-content' }} columns={columns} dataSource={followups} rowKey="id" loading={loading} />
+        <Table className="compact-table" size="small" scroll={{ x: 'max-content' }} columns={columns} dataSource={followups} rowKey="id" loading={loading} />
       </Card>
 
       <Drawer title="Schedule Follow-up" placement="right" width={400} onClose={() => setDrawerVisible(false)} open={drawerVisible}>
@@ -193,17 +199,17 @@ const FollowupsList = () => {
             </Select>
           </Form.Item>
           
-          <Space style={{ display: 'flex' }}>
+          <div style={{ display: 'flex', width: '100%', gap: '8px' }}>
             <Form.Item name="followupDate" label="Date" rules={[{ required: true }]} style={{ flex: 1 }}>
               <DatePicker style={{ width: '100%' }} />
             </Form.Item>
             <Form.Item name="followupTime" label="Time" style={{ flex: 1 }}>
-              <Input type="time" />
+              <Input type="time" style={{ width: '100%' }} />
             </Form.Item>
-          </Space>
+          </div>
           
           <Form.Item name="followupType" label="Type" initialValue="Call" rules={[{ required: true }]}>
-            <Select>
+            <Select style={{ width: '100%' }}>
               <Option value="Call">Call</Option>
               <Option value="Visit">Visit</Option>
               <Option value="Quotation">Quotation</Option>
@@ -212,7 +218,7 @@ const FollowupsList = () => {
             </Select>
           </Form.Item>
           <Form.Item name="priority" label="Priority" initialValue="Medium" rules={[{ required: true }]}>
-            <Select>
+            <Select style={{ width: '100%' }}>
               <Option value="High">High</Option>
               <Option value="Medium">Medium</Option>
               <Option value="Low">Low</Option>
@@ -234,35 +240,44 @@ const FollowupsList = () => {
               {hospitals.map(h => <Option key={h.id} value={h.id}>{h.name}</Option>)}
             </Select>
           </Form.Item>
-          <Space style={{ display: 'flex' }}>
+          <div style={{ display: 'flex', width: '100%', gap: '8px' }}>
             <Form.Item name="visitDate" label="Date" rules={[{ required: true }]} style={{ flex: 1 }}>
               <DatePicker style={{ width: '100%' }} />
             </Form.Item>
             <Form.Item name="visitTime" label="Time" style={{ flex: 1 }}>
-              <Input type="time" />
+              <Input type="time" style={{ width: '100%' }} />
             </Form.Item>
-          </Space>
+          </div>
           <Form.Item name="requirement" label="Requirement" rules={[{ required: true }]}>
             <Input placeholder="Enter requirements discussed" />
           </Form.Item>
           
           <Card size="small" title="Contact Person (Optional)" style={{ marginBottom: 16 }}>
-            <Form.Item name="contactName" label="Name" style={{ marginBottom: 12 }}>
-              <Input placeholder="Contact person name" />
-            </Form.Item>
-            <Space style={{ display: 'flex', width: '100%' }}>
+            <div style={{ display: 'flex', width: '100%', gap: '8px' }}>
+              <Form.Item name="contactName" label="Name" style={{ flex: 1, marginBottom: 0 }}>
+                <Input placeholder="Name" />
+              </Form.Item>
               <Form.Item name="contactPhone" label="Phone" style={{ flex: 1, marginBottom: 0 }}>
-                <Input placeholder="Phone number" />
+                <Input placeholder="Phone" />
               </Form.Item>
               <Form.Item name="contactEmail" label="Email" style={{ flex: 1, marginBottom: 0 }}>
-                <Input type="email" placeholder="Email address" />
+                <Input type="email" placeholder="Email" />
               </Form.Item>
-            </Space>
+            </div>
           </Card>
 
-          <Form.Item name="remarks" label="Remarks">
-            <TextArea rows={2} placeholder="Any general remarks..." />
-          </Form.Item>
+          <div style={{ display: 'flex', width: '100%', gap: '8px' }}>
+            <Form.Item name="remarks" label="Remarks" style={{ flex: 1 }}>
+              <TextArea rows={2} placeholder="Any general remarks..." />
+            </Form.Item>
+            <Form.Item name="priority" label="Priority" initialValue="Medium" style={{ flex: 1 }}>
+              <Select style={{ width: '100%' }}>
+                <Select.Option value="High">High</Select.Option>
+                <Select.Option value="Medium">Medium</Select.Option>
+                <Select.Option value="Low">Low</Select.Option>
+              </Select>
+            </Form.Item>
+          </div>
           <Form.Item name="notes" label="Notes">
             <TextArea rows={2} placeholder="Additional notes..." />
           </Form.Item>
@@ -272,14 +287,14 @@ const FollowupsList = () => {
           </Form.Item>
           
           {createFollowup && (
-            <Space style={{ display: 'flex' }}>
+            <div style={{ display: 'flex', width: '100%', gap: '8px' }}>
               <Form.Item name="followupDate" label="Follow-up Date" rules={[{ required: true }]} style={{ flex: 1 }}>
                 <DatePicker style={{ width: '100%' }} />
               </Form.Item>
               <Form.Item name="followupTime" label="Follow-up Time" style={{ flex: 1 }}>
-                <Input type="time" />
+                <Input type="time" style={{ width: '100%' }} />
               </Form.Item>
-            </Space>
+            </div>
           )}
 
           <Form.Item label="Upload Quotation PDF">

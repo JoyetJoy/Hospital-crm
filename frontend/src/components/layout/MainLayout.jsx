@@ -41,10 +41,6 @@ const MainLayout = () => {
     key: '/quotations',
     icon: <FileTextOutlined />,
     label: 'Quotations'
-  }, {
-    key: '/products',
-    icon: <AppstoreOutlined />,
-    label: 'Products'
   }];
   if (user?.role === 'Super Admin' || user?.role === 'Admin' || user?.role === 'Manager') {
     menuItems.unshift({
@@ -85,7 +81,7 @@ const MainLayout = () => {
   return <Layout style={{
     minHeight: '100vh'
   }}>
-      {!isMobile ? <Sider trigger={null} collapsible collapsed={collapsed} width={250}>
+      {!isMobile ? <Sider trigger={null} collapsible collapsed={collapsed} width={200}>
           <div style={{
         height: 64,
         display: 'flex',
@@ -116,7 +112,7 @@ const MainLayout = () => {
       }
     }} closeIcon={<span style={{
       color: 'white'
-    }}>✕</span>} width={250}>
+    }}>✕</span>} width={200}>
           {renderMenu()}
         </Drawer>}
       <Layout>

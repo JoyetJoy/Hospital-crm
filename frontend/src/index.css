@@ -103,6 +103,10 @@ body {
   align-items: center;
 }
 
+.page-header .ant-space {
+  flex-wrap: wrap;
+}
+
 .page-title {
   font-size: 24px;
   font-weight: 600;
@@ -123,4 +127,13 @@ body {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.compact-form .ant-form-item {
+  margin-bottom: 12px !important;
+}
+
+.compact-table .ant-table-cell {
+  font-size: 12px !important;
+  padding: 4px 8px !important;
 }
