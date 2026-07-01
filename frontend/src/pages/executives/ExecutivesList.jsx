@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Table, Button, Card, Typography, Drawer, Form, Input, Select, message, Tag, Space, Row, Col } from 'antd';
-import { PlusOutlined, DeleteOutlined, EditOutlined, LinkOutlined } from '@ant-design/icons';
+import { PlusOutlined, DeleteOutlined, EditOutlined, LinkOutlined, EyeOutlined } from '@ant-design/icons';
 import { useJsApiLoader, GoogleMap, Polygon } from '@react-google-maps/api';
+import { Link } from 'react-router-dom';
 import api from '../../services/api';
 const {
   Title
@@ -230,10 +231,17 @@ const ExecutivesList = () => {
     key: 'role',
     render: (_, record) => <Tag color="geekblue">{record.user?.role?.name || 'Executive'}</Tag>
   }, {
+    title: 'Assigned Hospitals',
+    key: 'assignedHospitals',
+    render: (_, record) => <Tag color="blue">{record._count?.assignments || 0}</Tag>
+  }, {
     title: 'Action',
     key: 'action',
     render: (_, record) => (
       <Space>
+        <Link to={`/executives/${record.id}`}>
+          <Button type="link" icon={<EyeOutlined />} title="View Details" />
+        </Link>
         <Button type="link" icon={<LinkOutlined />} onClick={() => openAssignDrawer(record)} title="Assign Hospitals" />
         <Button type="link" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
       </Space>

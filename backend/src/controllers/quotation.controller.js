@@ -60,6 +60,8 @@ const createQuotation = (req, res) => __awaiter(void 0, void 0, void 0, function
         if (isNaN(finalExecutiveId) && req.user && req.user.executiveId) {
             finalExecutiveId = req.user.executiveId;
         }
+        
+        const executiveIdToSave = isNaN(finalExecutiveId) ? null : finalExecutiveId;
 
         const file = req.file;
         const pdfPath = file ? `/uploads/${file.filename}` : null;
@@ -67,7 +69,7 @@ const createQuotation = (req, res) => __awaiter(void 0, void 0, void 0, function
         const quotation = yield prisma_1.default.quotation.create({
             data: {
                 hospitalId: parseInt(hospitalId),
-                executiveId: finalExecutiveId,
+                executiveId: executiveIdToSave,
                 date: date ? new Date(date) : new Date(),
                 time,
                 pdfPath

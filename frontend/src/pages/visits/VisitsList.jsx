@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Card, Typography, Tag, Space, Drawer, Form, Input, DatePicker, Select, message, Switch, Modal, Descriptions, Upload } from 'antd';
 import { PlusOutlined, UploadOutlined, DownloadOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons';
+import { useSelector } from 'react-redux';
 import api from '../../services/api';
 import dayjs from 'dayjs';
 const {
@@ -24,17 +25,37 @@ const VisitsList = () => {
   const [selectedVisit, setSelectedVisit] = useState(null);
   const [editingVisit, setEditingVisit] = useState(null);
   const [fileList, setFileList] = useState([]);
+  const [executives, setExecutives] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalVisits, setTotalVisits] = useState(0);
+  
+  const user = useSelector(state => state.auth.user);
+  const userRole = user?.role?.name || user?.role;
+  const isAdmin = typeof userRole === 'string' && userRole.toLowerCase().includes('admin');
+
   useEffect(() => {
-    fetchVisits();
+    fetchVisits(currentPage, pageSize);
     fetchHospitals();
-  }, []);
-  const fetchVisits = async () => {
+    if (isAdmin) fetchExecutives();
+  }, [isAdmin, currentPage, pageSize]);
+
+  const fetchExecutives = async () => {
+    try {
+      const { data } = await api.get('/executives');
+      setExecutives(data);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+  const fetchVisits = async (page = 1, limit = 10) => {
     try {
       setLoading(true);
       const {
         data
-      } = await api.get('/visits');
-      setVisits(data);
+      } = await api.get(`/visits?page=${page}&limit=${limit}`);
+      setVisits(data.data || data);
+      setTotalVisits(data.pagination?.total || data.length || 0);
     } catch (error) {
       console.error(error);
     } finally {
@@ -72,7 +93,8 @@ const VisitsList = () => {
       if (values.contactPhone) formData.append('contactPhone', values.contactPhone);
       if (values.contactEmail) formData.append('contactEmail', values.contactEmail);
       if (values.competitor) formData.append('competitor', values.competitor);
-      if (values.visitLog) formData.append('visitLog', values.visitLog);
+      if (values.priority) formData.append('priority', values.priority);
+      if (values.executiveId) formData.append('executiveId', values.executiveId);
 
       if (editingVisit) {
         await api.put(`/visits/${editingVisit.id}`, formData, {
@@ -98,18 +120,46 @@ const VisitsList = () => {
 
   const handleEdit = (record) => {
     setEditingVisit(record);
+
+    let hasFollowup = false;
+    let followupDate = null;
+    let followupTime = null;
+    if (record.followups && record.followups.length > 0) {
+      hasFollowup = true;
+      followupDate = dayjs(record.followups[0].followupDate);
+      followupTime = record.followups[0].followupTime;
+    }
+    setCreateFollowup(hasFollowup);
+
+    if (record.images) {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const baseUrl = apiUrl.replace('/api', '');
+      const fileName = record.images.split('/').pop();
+      setFileList([{
+        uid: '-1',
+        name: fileName,
+        status: 'done',
+        url: `${baseUrl}${record.images}`
+      }]);
+    } else {
+      setFileList([]);
+    }
+
     form.setFieldsValue({
       hospitalId: record.hospitalId,
+      executiveId: record.executiveId,
       visitDate: dayjs(record.visitDate),
       visitTime: record.visitTime,
       requirement: record.requirement,
       competitor: record.competitor,
-      visitLog: record.visitLog,
+      priority: record.priority || 'Medium',
       contactName: record.contactName,
       contactPhone: record.contactPhone,
       contactEmail: record.contactEmail,
       remarks: record.remarks,
       notes: record.notes,
+      followupDate: followupDate,
+      followupTime: followupTime,
     });
     setDrawerVisible(true);
   };
@@ -178,14 +228,30 @@ const VisitsList = () => {
         <Title level={3} className="page-title" style={{ margin: 0 }}>Visits Management</Title>
         <Space>
           <Button icon={<DownloadOutlined />} onClick={handleExport}>Export to Excel</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setDrawerVisible(true)}>Log Visit</Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => {
+            form.resetFields();
+            form.setFieldsValue({
+              visitDate: dayjs(),
+              visitTime: dayjs().format('HH:mm')
+            });
+            setDrawerVisible(true);
+          }}>Log Visit</Button>
         </Space>
       </div>
 
       <Card>
         <Table className="compact-table" size="small" scroll={{
         x: 'max-content'
-      }} columns={columns} dataSource={visits} rowKey="id" loading={loading} />
+      }} columns={columns} dataSource={visits} rowKey="id" loading={loading} pagination={{
+        current: currentPage,
+        pageSize: pageSize,
+        total: totalVisits,
+        onChange: (page, size) => {
+          setCurrentPage(page);
+          setPageSize(size);
+        },
+        showSizeChanger: true
+      }} />
       </Card>
 
       <Drawer title={editingVisit ? "Edit Visit" : "Log New Visit"} placement="right" width={500} onClose={() => {
@@ -197,10 +263,19 @@ const VisitsList = () => {
           <Form.Item name="hospitalId" label="Hospital" rules={[{
           required: true
         }]}>
-            <Select showSearch optionFilterProp="children">
+            <Select showSearch optionFilterProp="children" disabled={!!editingVisit}>
               {hospitals.map(h => <Option key={h.id} value={h.id}>{h.name}</Option>)}
             </Select>
           </Form.Item>
+
+          {isAdmin && (
+            <Form.Item name="executiveId" label="Executive" rules={[{ required: true, message: 'Please select an executive' }]}>
+              <Select showSearch optionFilterProp="children" placeholder="Select Executive" disabled={!!editingVisit}>
+                {executives.map(e => <Option key={e.id} value={e.id}>{e.user?.firstName} {e.user?.lastName}</Option>)}
+              </Select>
+            </Form.Item>
+          )}
+
           <Space style={{
           display: 'flex'
         }}>
@@ -236,10 +311,6 @@ const VisitsList = () => {
               </Select>
             </Form.Item>
           </div>
-          
-          <Form.Item name="visitLog" label="Visit Log">
-            <TextArea rows={2} placeholder="Detailed log of the visit..." />
-          </Form.Item>
           
           <Card size="small" title="Contact Person (Optional)" style={{ marginBottom: 16 }}>
             <div style={{ display: 'flex', width: '100%', gap: '8px' }}>
@@ -303,7 +374,6 @@ const VisitsList = () => {
             <Descriptions.Item label="Priority">
               {selectedVisit.priority ? <Tag color={selectedVisit.priority === 'High' ? 'red' : selectedVisit.priority === 'Medium' ? 'orange' : 'blue'}>{selectedVisit.priority}</Tag> : 'N/A'}
             </Descriptions.Item>
-            <Descriptions.Item label="Visit Log">{selectedVisit.visitLog || 'N/A'}</Descriptions.Item>
             <Descriptions.Item label="Remarks">{selectedVisit.remarks}</Descriptions.Item>
             <Descriptions.Item label="Notes">{selectedVisit.notes}</Descriptions.Item>
           </Descriptions>

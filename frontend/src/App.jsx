@@ -15,6 +15,8 @@ import QuotationsList from './pages/quotations/QuotationsList';
 import CreateQuotation from './pages/quotations/CreateQuotation';
 import ProductsList from './pages/products/ProductsList';
 import ExecutivesList from './pages/executives/ExecutivesList';
+import ExecutiveProfile from './pages/executives/ExecutiveProfile';
+
 const PrivateRoute = ({
   children
 }) => {
@@ -51,6 +53,7 @@ const App = () => {
           <Route path="products" element={<ProductsList />} />
           
           <Route path="executives" element={<ExecutivesList />} />
+          <Route path="executives/:id" element={<ExecutiveProfile />} />
         </Route>
       </Routes>
     </Router>;

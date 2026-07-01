@@ -18,7 +18,10 @@ const prisma_1 = __importDefault(require("../utils/prisma"));
 const getExecutives = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const executives = yield prisma_1.default.executive.findMany({
-            include: { user: true }
+            include: { 
+                user: true,
+                _count: { select: { visits: true, assignments: true } }
+            }
         });
         res.json(executives);
     }
@@ -31,7 +34,25 @@ const getExecutiveById = (req, res) => __awaiter(void 0, void 0, void 0, functio
     try {
         const executive = yield prisma_1.default.executive.findUnique({
             where: { id: parseInt(req.params.id) },
-            include: { user: true, assignments: { include: { hospital: true } } }
+            include: { 
+                user: true, 
+                assignments: { 
+                    include: { 
+                        hospital: {
+                            include: {
+                                _count: {
+                                    select: {
+                                        visits: {
+                                            where: { executiveId: parseInt(req.params.id) }
+                                        }
+                                    }
+                                }
+                            }
+                        } 
+                    } 
+                },
+                _count: { select: { visits: true } }
+            }
         });
         if (!executive)
             return res.status(404).json({ message: 'Executive not found' });

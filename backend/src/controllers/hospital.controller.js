@@ -44,16 +44,47 @@ const getHospitals = (req, res) => __awaiter(void 0, void 0, void 0, function* (
             where.district = String(district);
         if (city)
             where.city = String(city);
-        const hospitals = yield prisma_1.default.hospital.findMany({ 
-            where, 
-            orderBy: { name: 'asc' },
-            include: {
-                _count: {
-                    select: { visits: true }
+        if (req.query.page) {
+            const page = parseInt(req.query.page) || 1;
+            const limit = parseInt(req.query.limit) || 10;
+            const skip = (page - 1) * limit;
+
+            const [hospitals, total] = yield Promise.all([
+                prisma_1.default.hospital.findMany({ 
+                    where, 
+                    orderBy: { name: 'asc' },
+                    skip,
+                    take: limit,
+                    include: {
+                        _count: {
+                            select: { visits: true }
+                        }
+                    }
+                }),
+                prisma_1.default.hospital.count({ where })
+            ]);
+
+            res.json({
+                data: hospitals,
+                pagination: {
+                    total,
+                    page,
+                    limit,
+                    totalPages: Math.ceil(total / limit)
                 }
-            }
-        });
-        res.json(hospitals);
+            });
+        } else {
+            const hospitals = yield prisma_1.default.hospital.findMany({ 
+                where, 
+                orderBy: { name: 'asc' },
+                include: {
+                    _count: {
+                        select: { visits: true }
+                    }
+                }
+            });
+            res.json(hospitals);
+        }
     }
     catch (error) {
         res.status(500).json({ message: 'Error fetching hospitals', error });
@@ -63,12 +94,27 @@ exports.getHospitals = getHospitals;
 const getLocations = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const states = yield prisma_1.default.hospital.findMany({ select: { state: true }, distinct: ['state'], where: { state: { not: null } } });
-        const districts = yield prisma_1.default.hospital.findMany({ select: { district: true }, distinct: ['district'], where: { district: { not: null } } });
         const cities = yield prisma_1.default.hospital.findMany({ select: { city: true }, distinct: ['city'], where: { city: { not: null } } });
+        
+        const keralaDistricts = [
+            "Thiruvananthapuram", "Kollam", "Pathanamthitta", "Alappuzha",
+            "Kottayam", "Idukki", "Ernakulam", "Thrissur",
+            "Palakkad", "Malappuram", "Kozhikode", "Wayanad",
+            "Kannur", "Kasaragod"
+        ];
+
+        const normalize = (str) => {
+            if (!str) return '';
+            const trimmed = str.trim();
+            return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+        };
+
+        const uniqueCities = [...new Set(cities.map(c => normalize(c.city)).filter(Boolean))];
+
         res.json({
-            states: states.map(s => s.state).filter(Boolean),
-            districts: districts.map(d => d.district).filter(Boolean),
-            cities: cities.map(c => c.city).filter(Boolean)
+            states: ['Kerala'],
+            districts: keralaDistricts,
+            cities: uniqueCities
         });
     }
     catch (error) {
@@ -82,7 +128,7 @@ const getHospitalById = (req, res) => __awaiter(void 0, void 0, void 0, function
             where: { id: parseInt(req.params.id) },
             include: {
                 assignments: { include: { executive: { include: { user: true } } } },
-                visits: { orderBy: { visitDate: 'desc' }, take: 10 },
+                visits: { include: { executive: { include: { user: true } }, followups: true }, orderBy: { createdAt: 'desc' }, take: 10 },
                 followups: { orderBy: { followupDate: 'desc' }, take: 10 },
                 quotations: { orderBy: { createdAt: 'desc' }, take: 10 }
             }

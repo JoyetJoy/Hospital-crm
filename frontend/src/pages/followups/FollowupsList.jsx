@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Card, Typography, Tag, Space, Drawer, Form, Input, DatePicker, Select, message, Switch, Upload } from 'antd';
 import { PlusOutlined, UploadOutlined } from '@ant-design/icons';
+import { useSelector } from 'react-redux';
 import api from '../../services/api';
 import dayjs from 'dayjs';
 
@@ -22,11 +23,26 @@ const FollowupsList = () => {
   const [selectedFollowup, setSelectedFollowup] = useState(null);
   const [createFollowup, setCreateFollowup] = useState(false);
   const [visitFileList, setVisitFileList] = useState([]);
+  const [executives, setExecutives] = useState([]);
+  
+  const user = useSelector(state => state.auth.user);
+  const userRole = user?.role?.name || user?.role;
+  const isAdmin = typeof userRole === 'string' && userRole.toLowerCase().includes('admin');
 
   useEffect(() => {
     fetchFollowups();
     fetchHospitals();
-  }, []);
+    if (isAdmin) fetchExecutives();
+  }, [isAdmin]);
+
+  const fetchExecutives = async () => {
+    try {
+      const { data } = await api.get('/executives');
+      setExecutives(data);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const fetchFollowups = async () => {
     try {
@@ -77,9 +93,11 @@ const FollowupsList = () => {
 
   const openVisitDrawerForFollowup = (record) => {
     setSelectedFollowup(record);
+    visitForm.resetFields();
     visitForm.setFieldsValue({
       hospitalId: record.hospitalId,
       visitDate: dayjs(),
+      visitTime: dayjs().format('HH:mm'),
       requirement: record.followupType + ' Follow-up',
       notes: record.notes
     });
@@ -106,6 +124,9 @@ const FollowupsList = () => {
       if (values.contactName) formData.append('contactName', values.contactName);
       if (values.contactPhone) formData.append('contactPhone', values.contactPhone);
       if (values.contactEmail) formData.append('contactEmail', values.contactEmail);
+      if (values.competitor) formData.append('competitor', values.competitor);
+      if (values.priority) formData.append('priority', values.priority);
+      if (values.executiveId) formData.append('executiveId', values.executiveId);
 
       await api.post('/visits', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
@@ -248,9 +269,32 @@ const FollowupsList = () => {
               <Input type="time" style={{ width: '100%' }} />
             </Form.Item>
           </div>
+
+          {isAdmin && (
+            <Form.Item name="executiveId" label="Executive" rules={[{ required: true, message: 'Please select an executive' }]}>
+              <Select showSearch optionFilterProp="children" placeholder="Select Executive">
+                {executives.map(e => <Option key={e.id} value={e.id}>{e.user?.firstName} {e.user?.lastName}</Option>)}
+              </Select>
+            </Form.Item>
+          )}
+
           <Form.Item name="requirement" label="Requirement" rules={[{ required: true }]}>
             <Input placeholder="Enter requirements discussed" />
           </Form.Item>
+          
+          <div style={{ display: 'flex', width: '100%', gap: '8px' }}>
+            <Form.Item name="competitor" label="Competitor" style={{ flex: 1 }}>
+              <Input placeholder="Competitors present?" />
+            </Form.Item>
+            
+            <Form.Item name="priority" label="Priority" initialValue="Medium" style={{ flex: 1 }}>
+              <Select style={{ width: '100%' }}>
+                <Select.Option value="High">High</Select.Option>
+                <Select.Option value="Medium">Medium</Select.Option>
+                <Select.Option value="Low">Low</Select.Option>
+              </Select>
+            </Form.Item>
+          </div>
           
           <Card size="small" title="Contact Person (Optional)" style={{ marginBottom: 16 }}>
             <div style={{ display: 'flex', width: '100%', gap: '8px' }}>
@@ -266,18 +310,10 @@ const FollowupsList = () => {
             </div>
           </Card>
 
-          <div style={{ display: 'flex', width: '100%', gap: '8px' }}>
-            <Form.Item name="remarks" label="Remarks" style={{ flex: 1 }}>
-              <TextArea rows={2} placeholder="Any general remarks..." />
-            </Form.Item>
-            <Form.Item name="priority" label="Priority" initialValue="Medium" style={{ flex: 1 }}>
-              <Select style={{ width: '100%' }}>
-                <Select.Option value="High">High</Select.Option>
-                <Select.Option value="Medium">Medium</Select.Option>
-                <Select.Option value="Low">Low</Select.Option>
-              </Select>
-            </Form.Item>
-          </div>
+
+          <Form.Item name="remarks" label="Remarks">
+            <TextArea rows={2} placeholder="Any general remarks..." />
+          </Form.Item>
           <Form.Item name="notes" label="Notes">
             <TextArea rows={2} placeholder="Additional notes..." />
           </Form.Item>

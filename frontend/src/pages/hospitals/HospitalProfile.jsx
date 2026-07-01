@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { Card, Descriptions, Tabs, Timeline, Tag, Typography, Spin, Row, Col, Space, Button, Drawer, Form, Input, DatePicker, Select, Upload, message, Switch, Modal } from 'antd';
 import { EnvironmentOutlined, PhoneOutlined, MailOutlined, AppstoreOutlined, MedicineBoxOutlined, PlusOutlined, UploadOutlined, DownloadOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons';
 import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
@@ -36,11 +37,26 @@ const HospitalProfile = () => {
   const [quoteDrawerVisible, setQuoteDrawerVisible] = useState(false);
   const [quoteForm] = Form.useForm();
   const [quoteFileList, setQuoteFileList] = useState([]);
+  const [executives, setExecutives] = useState([]);
+  
+  const user = useSelector(state => state.auth.user);
+  const userRole = user?.role?.name || user?.role;
+  const isAdmin = typeof userRole === 'string' && userRole.toLowerCase().includes('admin');
   
   const [selectedFollowupId, setSelectedFollowupId] = useState(null);
   useEffect(() => {
     fetchHospital();
-  }, [id]);
+    if (isAdmin) fetchExecutives();
+  }, [id, isAdmin]);
+
+  const fetchExecutives = async () => {
+    try {
+      const { data } = await api.get('/executives');
+      setExecutives(data);
+    } catch (e) {
+      console.error(e);
+    }
+  };
   const fetchHospital = async () => {
     try {
       setLoading(true);
@@ -76,7 +92,8 @@ const HospitalProfile = () => {
       if (values.contactPhone) formData.append('contactPhone', values.contactPhone);
       if (values.contactEmail) formData.append('contactEmail', values.contactEmail);
       if (values.competitor) formData.append('competitor', values.competitor);
-      if (values.visitLog) formData.append('visitLog', values.visitLog);
+      if (values.priority) formData.append('priority', values.priority);
+      if (values.executiveId) formData.append('executiveId', values.executiveId);
 
       if (editingVisit) {
         await api.put(`/visits/${editingVisit.id}`, formData, {
@@ -107,17 +124,45 @@ const HospitalProfile = () => {
 
   const handleEdit = (visit) => {
     setEditingVisit(visit);
+    
+    let hasFollowup = false;
+    let followupDate = null;
+    let followupTime = null;
+    if (visit.followups && visit.followups.length > 0) {
+      hasFollowup = true;
+      followupDate = dayjs(visit.followups[0].followupDate);
+      followupTime = visit.followups[0].followupTime;
+    }
+    setCreateFollowup(hasFollowup);
+
+    if (visit.images) {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const baseUrl = apiUrl.replace('/api', '');
+      const fileName = visit.images.split('/').pop();
+      setFileList([{
+        uid: '-1',
+        name: fileName,
+        status: 'done',
+        url: `${baseUrl}${visit.images}`
+      }]);
+    } else {
+      setFileList([]);
+    }
+
     form.setFieldsValue({
+      executiveId: visit.executiveId,
       visitDate: dayjs(visit.visitDate),
       visitTime: visit.visitTime,
       requirement: visit.requirement,
       competitor: visit.competitor,
-      visitLog: visit.visitLog,
+      priority: visit.priority || 'Medium',
       contactName: visit.contactName,
       contactPhone: visit.contactPhone,
       contactEmail: visit.contactEmail,
       remarks: visit.remarks,
       notes: visit.notes,
+      followupDate: followupDate,
+      followupTime: followupTime,
     });
     setDrawerVisible(true);
   };
@@ -223,6 +268,10 @@ const HospitalProfile = () => {
               <Button type="primary" icon={<PlusOutlined />} onClick={() => {
                 setSelectedFollowupId(null);
                 form.resetFields();
+                form.setFieldsValue({
+                  visitDate: dayjs(),
+                  visitTime: dayjs().format('HH:mm')
+                });
                 setDrawerVisible(true);
               }}>Log Visit</Button>
             }>
@@ -258,7 +307,10 @@ const HospitalProfile = () => {
                         <div style={{ marginTop: 8 }}>
                           <Button size="small" type="primary" onClick={() => {
                             setSelectedFollowupId(f.id);
+                            form.resetFields();
                             form.setFieldsValue({
+                              visitDate: dayjs(),
+                              visitTime: dayjs().format('HH:mm'),
                               requirement: f.followupType + ' Follow-up',
                               notes: f.notes
                             });
@@ -301,6 +353,15 @@ const HospitalProfile = () => {
                   <Input type="time" style={{ width: '100%' }} />
                 </Form.Item>
               </div>
+
+              {isAdmin && (
+                <Form.Item name="executiveId" label="Executive" rules={[{ required: true, message: 'Please select an executive' }]}>
+                  <Select showSearch optionFilterProp="children" placeholder="Select Executive" disabled={!!editingVisit}>
+                    {executives.map(e => <Option key={e.id} value={e.id}>{e.user?.firstName} {e.user?.lastName}</Option>)}
+                  </Select>
+                </Form.Item>
+              )}
+
               <Form.Item name="requirement" label="Requirement" rules={[{ required: true }]}>
             <Input placeholder="Enter requirements discussed" />
           </Form.Item>
@@ -318,10 +379,6 @@ const HospitalProfile = () => {
               </Select>
             </Form.Item>
           </div>
-          
-          <Form.Item name="visitLog" label="Visit Log">
-            <TextArea rows={2} placeholder="Detailed log of the visit..." />
-          </Form.Item>
           
           <Card size="small" title="Contact Person (Optional)" style={{ marginBottom: 16 }}>
             <div style={{ display: 'flex', width: '100%', gap: '8px' }}>
@@ -403,7 +460,6 @@ const HospitalProfile = () => {
                 <Descriptions.Item label="Priority">
                   {selectedVisit.priority ? <Tag color={selectedVisit.priority === 'High' ? 'red' : selectedVisit.priority === 'Medium' ? 'orange' : 'blue'}>{selectedVisit.priority}</Tag> : 'N/A'}
                 </Descriptions.Item>
-                <Descriptions.Item label="Visit Log">{selectedVisit.visitLog || 'N/A'}</Descriptions.Item>
                 <Descriptions.Item label="Remarks">{selectedVisit.remarks}</Descriptions.Item>
                 <Descriptions.Item label="Notes">{selectedVisit.notes}</Descriptions.Item>
               </Descriptions>

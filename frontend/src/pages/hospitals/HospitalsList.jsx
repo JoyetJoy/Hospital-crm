@@ -68,7 +68,7 @@ const HospitalsList = () => {
   };
   useEffect(() => {
     fetchHospitals();
-  }, [searchTerm, filterCategory, filterState, filterDistrict, filterCity]);
+  }, [searchTerm, filterCategory, filterState, filterDistrict, filterCity, tableParams.pagination.current, tableParams.pagination.pageSize]);
   const fetchHospitals = async () => {
     try {
       setLoading(true);
@@ -80,10 +80,19 @@ const HospitalsList = () => {
           category: filterCategory,
           state: filterState,
           district: filterDistrict,
-          city: filterCity
+          city: filterCity,
+          page: tableParams.pagination.current,
+          limit: tableParams.pagination.pageSize
         }
       });
-      setHospitals(data);
+      setHospitals(data.data || data);
+      setTableParams(prev => ({
+        ...prev,
+        pagination: {
+          ...prev.pagination,
+          total: data.pagination?.total || data.length || 0
+        }
+      }));
     } catch (error) {
       console.error(error);
     } finally {
@@ -366,9 +375,9 @@ const HospitalsList = () => {
     dataIndex: 'category',
     key: 'category'
   }, {
-    title: 'City',
-    dataIndex: 'city',
-    key: 'city'
+    title: 'District',
+    dataIndex: 'district',
+    key: 'district'
   }, {
     title: 'Contact Person',
     dataIndex: 'contactPerson',
@@ -426,7 +435,7 @@ const HospitalsList = () => {
 
           <div>
             <Typography.Text strong>Category</Typography.Text>
-            <Select placeholder="Select Category" style={{ width: '100%', marginTop: 8 }} allowClear value={filterCategory || undefined} onChange={setFilterCategory}>
+            <Select showSearch optionFilterProp="children" placeholder="Select Category" style={{ width: '100%', marginTop: 8 }} allowClear value={filterCategory || undefined} onChange={setFilterCategory}>
               <Option value="Government">Government</Option>
               <Option value="Private">Private</Option>
               <Option value="EHSC">EHSC</Option>
@@ -434,19 +443,19 @@ const HospitalsList = () => {
           </div>
           <div>
             <Typography.Text strong>State</Typography.Text>
-            <Select placeholder="Select State" style={{ width: '100%', marginTop: 8 }} allowClear value={filterState || undefined} onChange={setFilterState}>
+            <Select showSearch optionFilterProp="children" placeholder="Select State" style={{ width: '100%', marginTop: 8 }} allowClear value={filterState || undefined} onChange={setFilterState}>
               {locations.states.map(s => <Option key={s} value={s}>{s}</Option>)}
             </Select>
           </div>
           <div>
             <Typography.Text strong>District</Typography.Text>
-            <Select placeholder="Select District" style={{ width: '100%', marginTop: 8 }} allowClear value={filterDistrict || undefined} onChange={setFilterDistrict}>
+            <Select showSearch optionFilterProp="children" placeholder="Select District" style={{ width: '100%', marginTop: 8 }} allowClear value={filterDistrict || undefined} onChange={setFilterDistrict}>
               {locations.districts.map(d => <Option key={d} value={d}>{d}</Option>)}
             </Select>
           </div>
           <div>
             <Typography.Text strong>City</Typography.Text>
-            <Select placeholder="Select City" style={{ width: '100%', marginTop: 8 }} allowClear value={filterCity || undefined} onChange={setFilterCity}>
+            <Select showSearch optionFilterProp="children" placeholder="Select City" style={{ width: '100%', marginTop: 8 }} allowClear value={filterCity || undefined} onChange={setFilterCity}>
               {locations.cities.map(c => <Option key={c} value={c}>{c}</Option>)}
             </Select>
           </div>
@@ -534,14 +543,18 @@ const HospitalsList = () => {
             </Col>
             <Col span={12}>
               <Form.Item name="state" label="State">
-                <Input />
+                <Select showSearch placeholder="Select State" allowClear>
+                  {locations.states.map(s => <Option key={s} value={s}>{s}</Option>)}
+                </Select>
               </Form.Item>
             </Col>
           </Row>
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item name="district" label="District">
-                <Input />
+                <Select showSearch placeholder="Select District" allowClear>
+                  {locations.districts.map(d => <Option key={d} value={d}>{d}</Option>)}
+                </Select>
               </Form.Item>
             </Col>
             <Col span={12}>
